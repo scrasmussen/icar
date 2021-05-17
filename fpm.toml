@@ -5,5 +5,5 @@ author = ["Ethan Gutmann"]
 maintainer = "gutmann@ucar.edu"
 copyright = "2021 National Center for Atmospheric Research"
 
-[build]
-external-modules = "netcdf"
+[dependencies]
+netcdf-interfaces = {git = "https://github.com/LKedward/netcdf-interfaces.git"}
