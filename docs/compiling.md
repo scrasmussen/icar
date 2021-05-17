@@ -14,9 +14,13 @@ cd build
 make install
 cd <icar-source-location>
 export GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
-fpm build --profile debug --flag "-cpp -DUSE_ASSERTIONS=.true. -I/usr/local/Cellar/fftw/3.3.9_1/include/ -fallow-argument-mismatch -ffree-line-length-none -DVERSION=\\\"$GIT_VERSION\\\""
-```
 
+export FFTW_INCLUDE_PATH=<path to fftw include dir> # example: /usr/local/Cellar/fftw/3.3.9_1/include/
+export NETCDF_LIB_PATH=<path to netcdf lib> # example: /usr/local/Cellar/netcdf/4.8.0_1/lib/
+export FFTW_LIB_PATH=<path to FFTW lib> # example: /usr/local/Cellar/fftw/3.3.9_1/lib"
+
+fpm build --profile debug --flag "-cpp -DUSE_ASSERTIONS=.true. -I$FFTW_INCLUDE_PATH -fallow-argument-mismatch -ffree-line-length-none -DVERSION=\\\"$GIT_VERSION\\\" -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH"
+```
 
 ##Building with the Makefile
 
