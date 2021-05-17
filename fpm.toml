@@ -1,0 +1,9 @@
+name = "icar"
+version = "2.0.0"
+license = "MIT"
+author = ["Ethan Gutmann"]
+maintainer = "gutmann@ucar.edu"
+copyright = "2021 National Center for Atmospheric Research"
+
+[build]
+external-modules = "netcdf"
