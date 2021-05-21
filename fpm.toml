@@ -7,3 +7,6 @@ copyright = "2021 National Center for Atmospheric Research"
 
 [dependencies]
 netcdf-interfaces = {git = "https://github.com/LKedward/netcdf-interfaces.git"}
+
+[build]
+link = "fftw3"
