@@ -1,3 +1,4 @@
+.PHONY: run-test
 ###################################################################
 # Makefile rules:
 #
@@ -401,6 +402,74 @@ OBJS=	$(BUILD)driver.o            \
 		$(BUILD)vinterp.o			\
 		$(BUILD)array_utilities.o
 
+AOBJS=	 \
+		$(BUILD)init.o  \
+		$(BUILD)time_step.o			\
+		$(BUILD)debug_utils.o		\
+		$(BUILD)icar_constants.o	\
+		$(BUILD)model_tracking.o	\
+		$(BUILD)string.o        	\
+		$(BUILD)time_delta_obj.o	\
+		$(BUILD)time_obj.o      	\
+		$(BUILD)time_h.o			\
+		$(BUILD)timer_h.o			\
+		$(BUILD)timer_obj.o			\
+		$(BUILD)opt_types.o			\
+		$(BUILD)time_io.o       	\
+		$(BUILD)restart_h.o			\
+		$(BUILD)restart.o	  		\
+		$(BUILD)options_h.o			\
+		$(BUILD)options_obj.o   	\
+		$(BUILD)meta_data_h.o		\
+		$(BUILD)meta_data_obj.o 	\
+		$(BUILD)variable_h.o		\
+		$(BUILD)variable_obj.o  	\
+		$(BUILD)variable_dict_h.o	\
+		$(BUILD)variable_dict_obj.o	\
+		$(BUILD)grid_h.o			\
+		$(BUILD)grid_obj.o			\
+		$(BUILD)exchangeable_h.o	\
+		$(BUILD)exchangeable_obj.o	\
+		$(BUILD)domain_h.o			\
+		$(BUILD)domain_obj.o		\
+		$(BUILD)boundary_h.o		\
+		$(BUILD)boundary_obj.o		\
+		$(BUILD)assertions.o		\
+		$(BUILD)atm_utilities.o		\
+		$(BUILD)co_utilities.o		\
+		$(BUILD)default_output_metadata.o\
+		$(BUILD)output_h.o			\
+		$(BUILD)output_obj.o		\
+		$(BUILD)wind.o				\
+		$(BUILD)linear_winds.o		\
+		$(BUILD)fftshift.o			\
+		$(BUILD)fftw.o				\
+		$(BUILD)lt_lut_io.o			\
+		$(BUILD)pbl_driver.o		\
+		$(BUILD)pbl_simple.o		\
+		$(BUILD)ra_driver.o			\
+		$(BUILD)ra_simple.o			\
+		$(BUILD)mp_driver.o			\
+		$(BUILD)mp_simple.o			\
+		$(BUILD)mp_thompson.o		\
+		$(BUILD)mp_thompson_aer.o	\
+		$(BUILD)mp_wsm6.o		\
+		$(BUILD)cu_driver.o			\
+		$(BUILD)cu_tiedtke.o		\
+		$(BUILD)advection_driver.o	\
+		$(BUILD)advect.o			\
+		$(BUILD)adv_mpdata.o                        \
+		$(BUILD)lsm_driver.o		\
+		$(BUILD)lsm_noahdrv.o		\
+		$(BUILD)lsm_noahlsm.o		\
+		$(BUILD)water_simple.o		\
+		$(BUILD)geo_reader.o		\
+		$(BUILD)io_routines.o		\
+		$(BUILD)data_structures.o	\
+		$(BUILD)vinterp.o			\
+		$(BUILD)array_utilities.o
+
+
 CAF_TEST_EXECUTABLES = 	caf_options_test 				\
 						caf_init_test 					\
 						caf_domain_init_test			\
@@ -509,6 +578,9 @@ caf_options_test: $(BUILD)test_caf_options.o				  	\
 				$(BUILD)advect.o		 $(BUILD)lsm_driver.o	\
 				$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
+	@echo "-------------_HERE_------------------"
+	${LINKER} $(BUILD)test_caf_options.o ${AOBJS} -o $@ ${LFLAGS}
+never:
 	${LINKER} $^ -o $@ ${LFLAGS}
 
 caf_output_test: $(BUILD)test_caf_output.o						\
@@ -550,7 +622,8 @@ caf_write_domain_test: $(BUILD)test_caf_write_domain.o					\
 					$(BUILD)vinterp.o		$(BUILD)lsm_driver.o		\
 					$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 					$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	# ${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER} $< ${AOBJS} -o $@ ${LFLAGS}
 
 caf_no_forcing_test: $(BUILD)test_caf_no_forcing.o							\
 	 				$(BUILD)domain_h.o		 $(BUILD)domain_obj.o		\
@@ -610,7 +683,8 @@ caf_domain_init_test: $(BUILD)test_caf_domain_init.o                \
 				$(BUILD)vinterp.o	\
 				$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	# ${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER}  $<  ${AOBJS} -o $@ ${LFLAGS}
 
 caf_init_test: $(BUILD)test_caf_init.o                              \
 				$(BUILD)icar_constants.o $(BUILD)io_routines.o      \
@@ -640,7 +714,9 @@ caf_init_test: $(BUILD)test_caf_init.o                              \
 				$(BUILD)lsm_driver.o	\
 				$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER} $(BUILD)test_caf_init.o ${AOBJS} -o $@ ${LFLAGS}
+	echo "=A============================================================"
+	# ${LINKER} $^ -o $@ ${LFLAGS}
 
 caf_init-write_test: $(BUILD)test_caf_init-write.o                  \
 				$(BUILD)icar_constants.o $(BUILD)io_routines.o      \
@@ -671,7 +747,8 @@ caf_init-write_test: $(BUILD)test_caf_init-write.o                  \
 				$(BUILD)lsm_driver.o	\
 				$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	# ${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER} $< ${AOBJS} -o $@ ${LFLAGS}
 
 caf_bcast_test: $(BUILD)test_caf_bcast.o	\
 				$(BUILD)co_utilities.o
@@ -704,7 +781,8 @@ caf_boundary_test: $(BUILD)test_caf_boundary.o						\
 				$(BUILD)lsm_driver.o								\
 				$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	# ${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER} $< ${AOBJS} -o $@ ${LFLAGS}
 
 caf_boundary_init_test: $(BUILD)test_caf_boundary_init.o				    \
 				$(BUILD)icar_constants.o $(BUILD)io_routines.o      \
@@ -733,7 +811,8 @@ caf_boundary_init_test: $(BUILD)test_caf_boundary_init.o				    \
 				$(BUILD)lsm_driver.o								\
 				$(BUILD)lsm_noahdrv.o 	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	# ${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER} $< ${AOBJS} -o $@ ${LFLAGS}
 
 caf_linear_winds_setup_test: $(BUILD)test_caf_linear_winds_setup.o	\
 				$(BUILD)icar_constants.o $(BUILD)io_routines.o      \
@@ -764,7 +843,8 @@ caf_linear_winds_setup_test: $(BUILD)test_caf_linear_winds_setup.o	\
 				$(BUILD)lt_lut_io.o		 $(BUILD)lsm_driver.o		\
 				$(BUILD)lsm_noahdrv.o	 $(BUILD)lsm_noahlsm.o \
 				$(BUILD)water_simple.o
-	${LINKER} $^ -o $@ ${LFLAGS}
+	# ${LINKER} $^ -o $@ ${LFLAGS}
+	${LINKER} $< ${AOBJS} -o $@ ${LFLAGS}
 
 
 caf_other_image_grids_test: $(BUILD)test_caf_other_image_grids.o	\
@@ -1123,3 +1203,20 @@ $(BUILD)test_blocking.o:$(TESTS)test_blocking.f90 $(BUILD)winds_blocking.o $(BUI
 						$(BUILD)data_structures.o $(BUILD)icar_constants.o $(BUILD)io_routines.o
 
 $(BUILD)test_array_utilities.o:$(TESTS)test_array_utilities.f90 $(BUILD)array_utilities.o
+
+define RUN
+./$(strip $(1))
+endef
+
+num_tests := $(shell echo "${TEST_EXECUTABLES}" | wc -w)
+null :=
+space := ${null} ${null}
+RUN_EXE := $(strip $(subst ${space}, "./", $(TEST_EXECUTABLES)))
+run-test: test
+	echo "test"
+	# # @for n in $$(seq 1 ${num_tests});
+	@for n in $$(seq 1 1); \
+	do echo -n "$${n}/${num_tests}:  " ; \
+	echo "${TEST_EXECUTABLES}" | cut -d " " -f $${n} ; \
+	echo "${RUN_EXE}" | cut -d " " -f $${n} | bash  ; \
+	done
