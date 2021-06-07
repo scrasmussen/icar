@@ -1,4 +1,3 @@
-.PHONY: run-test
 ###################################################################
 # Makefile rules:
 #
@@ -1212,11 +1211,22 @@ num_tests := $(shell echo "${TEST_EXECUTABLES}" | wc -w)
 null :=
 space := ${null} ${null}
 RUN_EXE := $(strip $(subst ${space}, "./", $(TEST_EXECUTABLES)))
-run-test: test
-	echo "test"
-	# # @for n in $$(seq 1 ${num_tests});
-	@for n in $$(seq 1 1); \
+.PHONY: run-test
+run-tests: test
+	# @for n in $$(seq 1 2);
+	@for n in $$(seq 1 ${num_tests}); \
 	do echo -n "$${n}/${num_tests}:  " ; \
 	echo "${TEST_EXECUTABLES}" | cut -d " " -f $${n} ; \
-	echo "${RUN_EXE}" | cut -d " " -f $${n} | bash  ; \
+	echo "${RUN_EXE}"          | cut -d " " -f $${n} | bash ; \
 	done
+
+.PHONY:ctest
+ctest:
+	rm -rf ctest
+	mkdir -p ctest
+	$(eval ctest_src:=$(shell pwd)/../docs/ctestfile)
+	$(eval ctest_bin:=$(shell pwd))
+
+	cd ctest; \
+	cmake ${ctest_src} -DCTEST_DIR=${ctest_bin} -DCTEST_SRC=${ctest_src}; \
+	ctest --verbose
