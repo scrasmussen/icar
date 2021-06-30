@@ -1,6 +1,6 @@
-##Compiling ICAR
+## Compiling ICAR
 
-##Building with the Fortran Package Manager ([fpm])
+## Building with the Fortran Package Manager ([fpm])
 
 ### macOS
 With homebrew installed,
