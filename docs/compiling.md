@@ -1,6 +1,6 @@
-##Compiling ICAR
+## Compiling ICAR
 
-##Building with the Fortran Package Manager ([fpm])
+## Building with the Fortran Package Manager ([fpm])
 
 ### macOS
 With homebrew installed,
@@ -37,7 +37,7 @@ Also to set the compiler for your machine if necessary (defaults to gfortran)
     make install
         # compile if necessary, then install in the install directory [~/bin]
 
-###Options:
+### Options:
     MODE=fast           # more optimization, slower compile, WARNING:not safe optimizations
     MODE=profile        # set profiling options for gnu or intel compilers
     MODE=debug          # debug compile with optimizations
@@ -53,7 +53,7 @@ Also to set the compiler for your machine if necessary (defaults to gfortran)
 
     add -jn to parallelize the compile over n processors
 
-###Example:
+### Example:
     make install MODE=debug -j4  # uses 4 processes to compile in debug mode
 
 [fpm]:  https://github.com/fortran-lang/fpm
