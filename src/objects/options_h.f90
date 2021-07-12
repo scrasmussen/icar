@@ -3,7 +3,7 @@ module options_interface
     use icar_constants,             only : kMAX_STRING_LENGTH, kMAX_STORAGE_VARS
     use options_types,              only : parameter_options_type, physics_type, mp_options_type, lt_options_type,      &
                                            block_options_type, adv_options_type, lsm_options_type, bias_options_type,   &
-                                           cu_options_type, output_options_type
+                                           cu_options_type, output_options_type, parcel_options_type
 
     implicit none
 
@@ -44,6 +44,8 @@ module options_interface
         type(cu_options_type)           :: cu_options
 
         type(bias_options_type)         :: bias_options
+
+        type(parcel_options_type)       :: parcel_options
 
     contains
 
