@@ -4,6 +4,9 @@ submodule(options_interface) options_implementation
                                            kNO_STOCHASTIC, kVERSION_STRING, kMAX_FILE_LENGTH, kMAX_NAME_LENGTH, pi, &
                                            kWATER_LAKE, &
                                            kWIND_LINEAR, kLINEAR_ITERATIVE_WINDS, kITERATIVE_WINDS, kCONSERVE_MASS
+    use options_types,              only : parameter_options_type, physics_type, mp_options_type, lt_options_type,      &
+                                           block_options_type, adv_options_type, lsm_options_type, bias_options_type,   &
+                                           cu_options_type, output_options_type, parcel_options_type
     use io_routines,                only : io_newunit
     use time_io,                    only : find_timestep_in_file
     use time_delta_object,          only : time_delta_t
@@ -54,21 +57,22 @@ contains
         options_filename = get_options_file()
         if (this_image()==1) write(*,*) "Using options file = ", trim(options_filename)
 
-        call version_check(         options_filename,   this%parameters)
-        call physics_namelist(      options_filename,   this)
-        call var_namelist(          options_filename,   this%parameters)
-        call parameters_namelist(   options_filename,   this%parameters)
-        call output_namelist(       options_filename,   this%output_options)
-        call model_levels_namelist( options_filename,   this%parameters)
+        call version_check(             options_filename,   this%parameters)
+        call physics_namelist(          options_filename,   this)
+        call var_namelist(              options_filename,   this%parameters)
+        call parameters_namelist(       options_filename,   this%parameters)
+        call output_namelist(           options_filename,   this%output_options)
+        call model_levels_namelist(     options_filename,   this%parameters)
+        call parcel_parameters_namelist(options_filename,   this)
 
-        call lt_parameters_namelist(    this%parameters%lt_options_filename,    this)
-        call block_parameters_namelist( this%parameters%block_options_filename, this)
-        call mp_parameters_namelist(    this%parameters%mp_options_filename,    this)
-        call adv_parameters_namelist(   this%parameters%adv_options_filename,   this)
-        call lsm_parameters_namelist(   this%parameters%lsm_options_filename,   this)
-        call cu_parameters_namelist(    this%parameters%cu_options_filename,    this)
-        call bias_parameters_namelist(  this%parameters%bias_options_filename,  this)
-        call rad_parameters_namelist(   this%parameters%rad_options_filename,   this)
+        call lt_parameters_namelist(     this%parameters%lt_options_filename,    this)
+        call block_parameters_namelist(  this%parameters%block_options_filename, this)
+        call mp_parameters_namelist(     this%parameters%mp_options_filename,    this)
+        call adv_parameters_namelist(    this%parameters%adv_options_filename,   this)
+        call lsm_parameters_namelist(    this%parameters%lsm_options_filename,   this)
+        call cu_parameters_namelist(     this%parameters%cu_options_filename,    this)
+        call bias_parameters_namelist(   this%parameters%bias_options_filename,  this)
+        call rad_parameters_namelist(    this%parameters%rad_options_filename,   this)
 
         if (this%parameters%restart) then
             ! if (this_image()==1) write(*,*) "  (opt) Restart = ", this%parameters%restart
@@ -1736,7 +1740,7 @@ contains
         ! define the namelist
         namelist /bias_parameters/ bias_correction_filename, rain_fraction_var
 
-         ! because adv_options could be in a separate file
+         ! because bias_options could be in a separate file
          if (options%parameters%use_bias_correction) then
              if (trim(filename)/=trim(get_options_file())) then
                  call version_check(filename,options%parameters)
@@ -2017,6 +2021,45 @@ contains
         endif
 
     end subroutine model_levels_namelist
+
+    !> -------------------------------
+    !! Initialize the air parcel options
+    !!
+    !! Reads the parcel_parameters namelist or sets default values
+    !!
+    !! -------------------------------
+    subroutine parcel_parameters_namelist(filename, options)
+        implicit none
+        character(len=*),   intent(in)   :: filename
+        type(options_t),    intent(inout)::options
+
+        type(parcel_options_type) :: parcel_options
+        integer :: name_unit, stat
+
+        integer :: total_parcels                   ! total number or air parcels
+        logical :: parcel_is_dry                   ! can the parcel become saturated
+
+        ! define the namelist
+        namelist /parcel_parameters/ total_parcels, parcel_is_dry
+
+        ! read the namelist options
+        open(io_newunit(name_unit), file=filename)
+        read(name_unit, nml=parcel_parameters, iostat=stat)
+        close(name_unit)
+
+        if (stat .ne. 0) then
+           ! set default values
+           total_parcels = 0
+           parcel_is_dry = .false.
+        end if
+
+        ! store everything in the lsm_options structure
+        parcel_options%total_parcels = total_parcels
+        parcel_options%parcel_is_dry = parcel_is_dry
+
+        ! copy the data back into the global options data structure
+        options%parcel_options = parcel_options
+    end subroutine parcel_parameters_namelist
 
     !> ----------------------------------------------------------------------------
     !!  Read in the name of the boundary condition files from a text file

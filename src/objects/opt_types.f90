@@ -162,6 +162,14 @@ module options_types
     end type rad_options_type
 
     ! ------------------------------------------------
+    ! store air parcel options
+    ! ------------------------------------------------
+    type parcel_options_type
+        integer :: total_parcels
+        logical :: parcel_is_dry
+    end type parcel_options_type
+
+    ! ------------------------------------------------
     ! store output file related options
     ! ------------------------------------------------
     type output_options_type
