@@ -10,6 +10,7 @@ module convection
     use icar_constants
     use mod_wrf_constants
     use module_cu_tiedtke,  only: tiedtkeinit, CU_TIEDTKE
+    use module_cu_parcel,   only: cu_parcel_physics
     ! use module_cu_kf,       only: kfinit, KFCPS
     use module_cu_nsas,  only: nsasinit, cu_nsas
     use module_cu_bmj,  only: bmjinit, bmjdrv
@@ -19,7 +20,7 @@ module convection
 
     implicit none
     private
-    public :: init_convection, convect, cu_var_request
+    public :: convection_init, convect, cu_var_request
 
     logical,allocatable, dimension(:,:) ::  CU_ACT_FLAG
     real,   allocatable, dimension(:,:) ::  XLAND, RAINCV, PRATEC, NCA
@@ -94,11 +95,14 @@ contains
     end subroutine cu_var_request
 
 
-    subroutine init_convection(domain,options)
+    subroutine convection_init(domain,options)
         implicit none
         type(domain_t),  intent(inout) :: domain
         type(options_t), intent(in) :: options
         integer :: i, j
+
+        if (options%physics%convection == kCU_PARCEL) &
+            return
 
         if (this_image()==1) write(*,*) "Initializing Cumulus Scheme"
 
@@ -141,7 +145,8 @@ contains
 
             allocate(w_stochastic(ims:ime,kms:kme,jms:jme))
 
-        endif
+        end if
+
 
         if (options%physics%convection == kCU_TIEDTKE) then
             if (this_image()==1) write(*,*) "    Tiedtke Cumulus scheme"
@@ -249,8 +254,7 @@ contains
          elseif ((options%cu_options%stochastic_cu == kNO_STOCHASTIC) .and.  (this_image()==1)) then
             write(*,*)"      No stochastic W pertubation for convection triggering"
          endif
-
-    end subroutine init_convection
+    end subroutine convection_init
 
 subroutine convect(domain,options,dt_in)
     implicit none
@@ -265,6 +269,20 @@ subroutine convect(domain,options,dt_in)
 
     itimestep = 1
     STEPCU = 1
+
+    if (options%physics%convection==kCU_PARCEL) then
+        call cu_parcel_physics(&
+            domain%parcels, domain%grid, domain%z_interface, domain%z, &
+            domain%temperature, domain%potential_temperature, domain%pressure, &
+            domain%u, domain%v, domain%w, &
+            dt_in, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
+            ! 1., domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
+            domain%rain_mass)
+            ! TODO: TIMESTEP
+        return
+    end if
+
+
 
     !$omp parallel private(j) &
     !$omp default(shared)
@@ -510,6 +528,5 @@ subroutine convect(domain,options,dt_in)
         ! $omp end parallel
 
     endif
-
 end subroutine convect
 end module convection

@@ -1577,7 +1577,8 @@ contains
                 write(*,*) trim(extra)
             endif
             ! STOP the program execution
-            stop "Stopped"
+            call backtrace()
+            stop "Stopped: io_routines.f90 check"
             !$omp end critical (print_lock)
         end if
     end subroutine check

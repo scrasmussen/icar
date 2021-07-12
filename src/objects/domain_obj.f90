@@ -10,7 +10,7 @@
 submodule(domain_interface) domain_implementation
     use assertions_mod,       only : assert, assertions
     use mod_atm_utilities,    only : exner_function, update_pressure
-    use icar_constants,       only : kVARS, kLC_LAND, kLC_WATER, kWATER_LAKE, kDOUBLE
+    use icar_constants,       only : kVARS, kLC_LAND, kLC_WATER, kWATER_LAKE, kDOUBLE, kCU_PARCEL
     use string,               only : str
     use co_util,              only : broadcast
     use io_routines,          only : io_read, io_write
@@ -141,6 +141,7 @@ contains
       if (associated(this%snow_number%data_3d))           call this%snow_number%retrieve(no_sync=.True.)
       if (associated(this%graupel_mass%data_3d))          call this%graupel_mass%retrieve(no_sync=.True.)
       if (associated(this%graupel_number%data_3d))        call this%graupel_number%retrieve(no_sync=.True.)
+      if (this%parcels%total_parcel_count > 0)            call this%parcels%retrieve(no_sync=.True.)
     end subroutine
 
     !> -------------------------------
@@ -420,6 +421,8 @@ contains
 
         if (0<opt%vars_to_allocate( kVARS%znu) )                        allocate(this%znu(kms:kme),   source=0.0)
         if (0<opt%vars_to_allocate( kVARS%znw) )                        allocate(this%znw(kms:kme),   source=0.0)
+        ! if (0<opt%vars_to_allocate( kVARS%parcels) )                    call this%parcels%allocate_parcels(opt, this%grid) ! to fix
+        if (opt%physics%convection == kCU_PARCEL)                       call this%parcels%allocate_parcels(opt, this%grid)
 
     end subroutine
 

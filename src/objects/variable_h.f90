@@ -3,6 +3,7 @@ module variable_interface
     use grid_interface,          only : grid_t
     use meta_data_interface,     only : meta_data_t
     use iso_fortran_env,         only : real64
+    use parcel_type_interface,   only : parcel_t
 
     implicit none
 
@@ -13,19 +14,23 @@ module variable_interface
         real, pointer :: data_3d(:,:,:) => null()
         real, pointer :: data_2d(:,:)   => null()
         real(kind=real64), pointer :: data_2dd(:,:) => null()
+        type(parcel_t), pointer :: data_parcels(:) => null()
 
         real, pointer :: dqdt_3d(:,:,:) => null()   ! Note these have to be pointers so they get referenced when variable_t is passed around(?)
         real, pointer :: dqdt_2d(:,:)   => null()   ! Note these have to be pointers so they get referenced when variable_t is passed around(?)
 
+
         logical                         :: unlimited_dim = .False.
         logical                         :: three_d = .False.
         logical                         :: two_d = .False.
+        logical                         :: parcels = .False.
         logical                         :: force_boundaries = .True.
         logical                         :: computed = .False.
         character(len=kMAX_NAME_LENGTH) :: forcing_var = ""
 
         integer :: n_dimensions
         integer :: dtype
+        integer :: n_parcels = 0
         integer,                        allocatable :: dim_len(:)
         character(len=kMAX_DIM_LENGTH), allocatable :: dimensions(:)
 
