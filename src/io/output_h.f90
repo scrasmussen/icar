@@ -42,6 +42,10 @@ module output_interface
       ! time variable , publicis stored outside of the variable list... probably need to think about that some
       type(variable_t) :: time
 
+      ! number of parcels
+      integer, public :: n_image_parcels = 0
+      integer, public :: n_total_parcels = 0
+
       ! store status of the object
       logical :: is_initialized = .false.
       logical :: creating = .false.

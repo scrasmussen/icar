@@ -4,7 +4,7 @@ from netCDF4 import Dataset
 import numpy as np
 from sys import exit, path
 from os import getcwd
-path.insert(0, getcwd()+'/../helpers/genNetCDF')
+path.insert(0, getcwd()+'/../helpers/generateTestFiles')
 import Topography as tg
 import Forcing as fc
 import ICARoptions as opt
@@ -65,11 +65,10 @@ mixing_ratio = 0.001 # water vapor # not if constant
 qv_val = mixing_ratio
 
 # --- choose function for creating pressure ---
+# options: calc_pressure_from_sea, calc_pressure_dz_iter, calc_pressure_1m_iter
 pressure_func = 'calc_pressure_from_sea'
-# pressure_func = 'calc_pressure_dz_iter'
-# pressure_func = 'calc_pressure_1m_iter'
 # --- choose weather model ---
-# weather_model = 'basic'
+# options: basic, WeismanKlemp
 weather_model = 'WeismanKlemp'
 
 

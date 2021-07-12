@@ -260,7 +260,8 @@ module icar_constants
         integer :: iwv
         integer :: iwl
         integer :: iwi
-        integer :: last_var
+        integer :: parcels
+        integer :: last_var ! should always be the last var in this type
     end type var_constants_type
 
 
@@ -287,8 +288,7 @@ module icar_constants
                                                             201, 202, 203, 204, 205, 206, 207, 208, 209, 210,  &
                                                             211, 212, 213, 214, 215, 216, 217, 218, 219, 220,  &
                                                             221, 222, 223, 224, 225, 226, 227, 228, 229, 230,  &
-                                                            231, 232, 233)
-
+                                                            231 , 232, 233, 234)
 
     integer, parameter :: kINTEGER_BITS     = storage_size(kINTEGER_BITS)
     integer, parameter :: kMAX_STORAGE_VARS = storage_size(kVARS) / kINTEGER_BITS
@@ -317,7 +317,7 @@ module icar_constants
 !>------------------------------------------------
 !!  Default width of coarray halos, ideally might be physics dependant (e.g. based on advection spatial order)
 !! ------------------------------------------------
-    integer,parameter :: kDEFAULT_HALO_SIZE = 1
+    integer,parameter :: kDEFAULT_HALO_SIZE = 2
 
 !>------------------------------------------------
 !! Value to accept for difference between real numbers should be as a fraction but then have to test for non-zero...
@@ -343,6 +343,7 @@ module icar_constants
     integer, parameter :: kCU_KAINFR     = 3
     integer, parameter :: kCU_NSAS       = 4
     integer, parameter :: kCU_BMJ        = 5
+    integer, parameter :: kCU_PARCEL     = 6
 
     integer, parameter :: kMP_THOMPSON   = 1
     integer, parameter :: kMP_SB04       = 2

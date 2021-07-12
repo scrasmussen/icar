@@ -1,5 +1,6 @@
 # class generates ICAR namelist file
 class ICARoptions:
+
     def __init__(self,
                  filename = 'icar_options.nml',
                  # model namelist
@@ -55,8 +56,8 @@ class ICARoptions:
                  calendar = 'standard',
                  input_interval = '3600',
                  dx = '4000.0',
-                 qv_is_relative_humidity ='true',
-                 readdz = 'true',
+                 qv_is_relative_humidity = 'True',
+                 readdz = 'True',
                  nz = '15',
                  z_is_geopotential = 'False',
                  z_is_on_interface = 'False',
@@ -68,7 +69,18 @@ class ICARoptions:
                  use_agl_height = True,   #  Use height above ground level to interpolate the wind field instead of height above sea level.
                  agl_cap = 400,  #   Height at which we switch from AGL-interpolation to using ASL-interpolation
                  # parcels namelist
-                 total_parcels = 0):
+                 parc_total_parcels = 0,
+                 parc_replace_parcel = 'True',
+                 parc_environment_only = 'True',
+                 parc_z_init = -9999.0,
+                 parc_velocity_init = -9999.0,
+                 parc_velocity_offset = 0.0,
+                 parc_velocity_prob_range = 0.0,
+                 parc_temp_init = -9999.0,
+                 parc_temp_offset = 0.0,
+                 parc_temp_prob_range = 0.0,
+                 parc_rh = -1.0,
+                 parc_rh_prob_range = 0.0):
 
         # Open file, create namelist objects, then write
         f = open(filename, 'w')
@@ -108,8 +120,7 @@ class ICARoptions:
                                      terrain_smooth_cycles = terrain_smooth_cycles ,
                                      decay_rate_L_topo = decay_rate_L_topo,
                                      decay_rate_S_topo = decay_rate_S_topo,
-                                     sleve_n = sleve_n
-                                    )
+                                     sleve_n = sleve_n)
 
         self.forcing_var_list = ForcingVarList(filename=f,
                                                uvar=forc_u_var,
@@ -153,7 +164,18 @@ class ICARoptions:
                                               smooth_wind_distance)
 
         self.parcels_list = ParcelsList(filename=f,
-                                        total_parcels=total_parcels)
+                                        total_parcels=parc_total_parcels,
+                                        replace_parcel=parc_replace_parcel,
+                                        environment_only=parc_environment_only,
+                                        z_init=parc_z_init,
+                                        velocity_init=parc_velocity_init,
+                                        velocity_offset=parc_velocity_offset,
+                                        velocity_prob_range=parc_velocity_prob_range,
+                                        temp_init=parc_temp_init,
+                                        temp_offset=parc_temp_offset,
+                                        temp_prob_range=parc_temp_prob_range,
+                                        rh_init=parc_rh,
+                                        rh_prob_range=parc_rh_prob_range)
 
         self.generate_all_namelists()
         f.close()
