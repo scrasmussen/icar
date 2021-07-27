@@ -339,9 +339,9 @@ $(info $$MODE        = ${MODE})
 
 
 
-OBJS=	\
-		$(BUILD)init.o				\
-		$(BUILD)time_step.o			\
+OBJS=    	$(BUILD)driver.o	        \
+		$(BUILD)init.o			\
+		$(BUILD)time_step.o		\
 		$(BUILD)debug_utils.o		\
 		$(BUILD)icar_constants.o	\
 		$(BUILD)wrf_constants.o		\
@@ -349,14 +349,14 @@ OBJS=	\
 		$(BUILD)string.o        	\
 		$(BUILD)time_delta_obj.o	\
 		$(BUILD)time_obj.o      	\
-		$(BUILD)time_h.o			\
-		$(BUILD)timer_h.o			\
-		$(BUILD)timer_obj.o			\
-		$(BUILD)opt_types.o			\
+		$(BUILD)time_h.o		\
+		$(BUILD)timer_h.o		\
+		$(BUILD)timer_obj.o		\
+		$(BUILD)opt_types.o		\
 		$(BUILD)time_io.o       	\
-		$(BUILD)restart_h.o			\
-		$(BUILD)restart.o	  		\
-		$(BUILD)options_h.o			\
+		$(BUILD)restart_h.o		\
+		$(BUILD)restart.o	  	\
+		$(BUILD)options_h.o		\
 		$(BUILD)options_obj.o   	\
 		$(BUILD)meta_data_h.o		\
 		$(BUILD)meta_data_obj.o 	\
@@ -364,11 +364,11 @@ OBJS=	\
 		$(BUILD)variable_obj.o  	\
 		$(BUILD)variable_dict_h.o	\
 		$(BUILD)variable_dict_obj.o	\
-		$(BUILD)grid_h.o			\
-		$(BUILD)grid_obj.o			\
+		$(BUILD)grid_h.o		\
+		$(BUILD)grid_obj.o		\
 		$(BUILD)exchangeable_h.o	\
 		$(BUILD)exchangeable_obj.o	\
-		$(BUILD)domain_h.o			\
+		$(BUILD)domain_h.o		\
 		$(BUILD)domain_obj.o		\
 		$(BUILD)boundary_h.o		\
 		$(BUILD)boundary_obj.o		\
@@ -377,34 +377,33 @@ OBJS=	\
 		$(BUILD)pbl_utilities.o		\
 		$(BUILD)co_utilities.o		\
 		$(BUILD)default_output_metadata.o\
-		$(BUILD)output_h.o			\
+		$(BUILD)output_h.o		\
 		$(BUILD)output_obj.o		\
-		$(BUILD)wind.o				\
+		$(BUILD)wind.o			\
 		$(BUILD)linear_winds.o		\
-		$(BUILD)fftshift.o			\
-		$(BUILD)fftw.o				\
-		$(BUILD)lt_lut_io.o			\
+		$(BUILD)fftshift.o		\
+		$(BUILD)fftw.o			\
+		$(BUILD)lt_lut_io.o		\
 		$(BUILD)pbl_driver.o		\
 		$(BUILD)pbl_simple.o		\
-		$(BUILD)pbl_ysu.o			\
-		$(BUILD)ra_driver.o			\
-		$(BUILD)ra_simple.o			\
-		$(BUILD)ra_rrtmg_lw.o       \
-		$(BUILD)ra_rrtmg_sw.o       \
-		$(BUILD)ra_clWRF_support.o  \
-		$(BUILD)mp_driver.o			\
-		$(BUILD)mp_simple.o			\
+		$(BUILD)pbl_ysu.o               \
+		$(BUILD)ra_driver.o		\
+		$(BUILD)ra_simple.o		\
+		$(BUILD)ra_rrtmg_lw.o           \
+		$(BUILD)ra_rrtmg_sw.o           \
+		$(BUILD)ra_clWRF_support.o      \
+		$(BUILD)mp_driver.o		\
+		$(BUILD)mp_simple.o		\
 		$(BUILD)mp_thompson.o		\
 		$(BUILD)mp_thompson_aer.o	\
-		$(BUILD)mp_wsm6.o			\
-		$(BUILD)mp_wsm3.o			\
-		$(BUILD)cu_driver.o			\
+		$(BUILD)mp_wsm6.o		\
+		$(BUILD)cu_driver.o		\
 		$(BUILD)cu_tiedtke.o		\
 		$(BUILD)cu_nsas.o			\
 		$(BUILD)cu_bmj.o			\
 		$(BUILD)advection_driver.o	\
-		$(BUILD)advect.o			\
-		$(BUILD)adv_mpdata.o        \
+		$(BUILD)advect.o		\
+		$(BUILD)adv_mpdata.o		\
 		$(BUILD)lsm_driver.o		\
 		$(BUILD)lsm_noahdrv.o		\
 		$(BUILD)lsm_noahlsm.o		\
@@ -417,7 +416,7 @@ OBJS=	\
 		$(BUILD)geo_reader.o		\
 		$(BUILD)io_routines.o		\
 		$(BUILD)data_structures.o	\
-		$(BUILD)vinterp.o			\
+		$(BUILD)vinterp.o		\
 		$(BUILD)array_utilities.o
 
 CAF_TEST_EXECUTABLES = 	caf_options_test 				\
