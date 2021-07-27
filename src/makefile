@@ -362,6 +362,8 @@ OBJS=	$(BUILD)driver.o			\
 		$(BUILD)grid_obj.o		\
 		$(BUILD)exchangeable_h.o	\
 		$(BUILD)exchangeable_obj.o	\
+		$(BUILD)parcel_interfaces.o	\
+		$(BUILD)parcel.o		\
 		$(BUILD)domain_h.o		\
 		$(BUILD)domain_obj.o		\
 		$(BUILD)boundary_h.o		\
@@ -850,6 +852,9 @@ $(BUILD)grid_h.o: $(OBJECTS)grid_h.f90 $(BUILD)icar_constants.o
 $(BUILD)exchangeable_obj.o: $(OBJECTS)exchangeable_obj.f90 $(BUILD)exchangeable_h.o $(BUILD)assertions.o
 
 $(BUILD)exchangeable_h.o: $(OBJECTS)exchangeable_h.f90 $(BUILD)grid_h.o $(BUILD)variable_h.o $(BUILD)assertions.o
+
+$(BUILD)parcel.o: $(OBJECTS)parcel.f90 $(BUILD)parcel_interfaces.o $(BUILD)assertions.o
+$(BUILD)parcel_interfaces.o: $(BUILD)exchangeable_h.o $(BUILD)exchangeable_obj.o $(BUILD)grid_h.o $(BUILD)assertions.o
 
 $(BUILD)default_output_metadata.o: $(IO)default_output_metadata.f90 $(BUILD)icar_constants.o $(BUILD)variable_h.o $(BUILD)meta_data_h.o
 
