@@ -3,6 +3,7 @@ module domain_interface
   use options_interface,        only : options_t
   use boundary_interface,       only : boundary_t
   use exchangeable_interface,   only : exchangeable_t
+  use parcel_interface,         only : exchangeable_parcel
   use grid_interface,           only : grid_t
   use variable_interface,       only : variable_t
   use variable_dict_interface,  only : var_dict_t
@@ -48,6 +49,7 @@ module domain_interface
     type(exchangeable_t) :: snow_number
     type(exchangeable_t) :: graupel_mass
     type(exchangeable_t) :: graupel_number
+    type(exchangeable_parcel) :: parcels
 
     ! other model variables (not advected)
     type(variable_t) :: exner

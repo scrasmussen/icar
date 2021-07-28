@@ -54,12 +54,12 @@ module parcel_interface
   implicit none
 
   private
-  public :: parcel_exchangeable, num_parcels_per_image, &
+  public :: exchangeable_parcel, num_parcels_per_image, &
        total_num_parcels, are_parcels_dry, &
        num_parcels_communicated, get_wind_speed, check_buf_size, &
        current_num_parcels
 
-  type parcel_exchangeable
+  type exchangeable_parcel
      private
      type(parcel_t), allocatable, public :: local(:)
      type(parcel_t), allocatable :: buf_north_in(:)[:]
@@ -116,7 +116,7 @@ module parcel_interface
      procedure :: retrieve_buf
      procedure :: create_parcel_id
      procedure :: setup_neighbors
-  end type parcel_exchangeable
+  end type exchangeable_parcel
 
 
   interface
@@ -125,7 +125,7 @@ module parcel_interface
          its, ite, kts, kte, jts, jte, z_m, potential_temp, pressure, u_in, &
          v_in, w_in, timestep)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        integer, intent(in) :: nx_global, ny_global
        real, intent(in)    :: dt, dz
        integer, intent(in) :: ims, ime, kms, kme, jms, jme
@@ -142,7 +142,7 @@ module parcel_interface
      module subroutine convect_const(this, potential_temp, u_in, v_in, w_in, grid, z_m, &
          z_interface, ims, ime, kms, kme, jms, jme, dz_val, &
          its, ite, kts, kte, jts, jte, pressure, input_buf_size, halo_width)
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        class(exchangeable_t), intent(in)    :: potential_temp
        class(exchangeable_t), intent(in)    :: u_in, v_in, w_in
        type(grid_t), intent(in)      :: grid
@@ -158,88 +158,88 @@ module parcel_interface
 
      module subroutine send(this)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
      end subroutine
 
      module subroutine load_buf(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine retrieve_buf(this, buf)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: buf(:)[*]
      end subroutine
 
      module subroutine retrieve(this, no_sync)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        logical,               intent(in),   optional :: no_sync
      end subroutine
 
      module subroutine exchange(this)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
      end subroutine
 
      module subroutine put_north(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_south(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_east(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_west(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_northeast(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_northwest(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_southeast(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_southwest(this, parcel)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine create_parcel_id(this)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
      end subroutine
 
      module subroutine setup_neighbors(this,grid)
        implicit none
-       class(parcel_exchangeable), intent(inout) :: this
+       class(exchangeable_parcel), intent(inout) :: this
        type(grid_t), intent(in) :: grid
      end subroutine
 
@@ -269,7 +269,7 @@ module parcel_interface
 
      module function current_num_parcels(convection_obj)
        integer :: current_num_parcels
-       type(parcel_exchangeable),intent(in) :: convection_obj
+       type(exchangeable_parcel),intent(in) :: convection_obj
      end function current_num_parcels
 
      module function create_parcel(parcel_id, its, ite, kts, kte, jts, jte,&
