@@ -1,23 +1,23 @@
 module parcel_type_interface
-  implicit none
-  private
-  public :: parcel_t
+implicit none
+private
+public :: parcel_t
 
-  type parcel_t
-     integer :: parcel_id
-     logical :: exists = .false.
-     integer :: moved
-     real :: x, y, z
-     real :: u, v, w
-     real :: z_meters, z_interface
-     real :: pressure, temperature, potential_temp
-     real :: velocity, water_vapor, cloud_water
-     real :: relative_humidity
-   contains
-     procedure :: move_to
-  end type parcel_t
+type parcel_t
+    integer :: parcel_id
+    logical :: exists = .false.
+    integer :: moved
+    real :: x, y, z
+    real :: u, v, w
+    real :: z_meters, z_interface
+    real :: pressure, temperature, potential_temp
+    real :: velocity, water_vapor, cloud_water
+    real :: relative_humidity
+    contains
+    procedure :: move_to
+end type parcel_t
 contains
-  subroutine move_to(from,to)
+subroutine move_to(from,to)
     class(parcel_t), intent(inout) :: from
     type(parcel_t), intent(inout)  :: to
     ! handle the from
@@ -38,7 +38,7 @@ contains
     to%water_vapor = from%water_vapor
     to%cloud_water = from%cloud_water
     to%relative_humidity = from%relative_humidity
-  end subroutine move_to
+end subroutine move_to
 
   ! not being used right now
   function constructor() result(this)
@@ -51,13 +51,14 @@ module parcel_interface
   use iso_c_binding, only : c_int
   use parcel_type_interface, only : parcel_t
   use exchangeable_interface, only : exchangeable_t
+
   implicit none
 
   private
   public :: exchangeable_parcel, num_parcels_per_image, &
        total_num_parcels, are_parcels_dry, &
        num_parcels_communicated, get_wind_speed, check_buf_size, &
-       current_num_parcels
+       current_num_parcels !, parcels_init
 
   type exchangeable_parcel
      private
@@ -102,7 +103,8 @@ module parcel_interface
      procedure, public :: send
      procedure, public :: retrieve
      procedure, public :: exchange
-     procedure, public :: process
+     procedure, public :: process  ! see physics
+     ! procedure, public :: parcels_init
      generic,   public :: initialize=>convect_const
 
      procedure :: put_north
@@ -120,6 +122,11 @@ module parcel_interface
 
 
   interface
+     ! module subroutine parcels_init(domain, options)
+     !   type(domain_t),  intent(inout) :: domain
+     !   type(options_t), intent(in) :: options
+     ! end module subroutine
+
      module subroutine process(this, nx_global, ny_global, &
          ims, ime, kms, kme, jms, jme, dt, dz, temperature, z_interface, &
          its, ite, kts, kte, jts, jte, z_m, potential_temp, pressure, u_in, &

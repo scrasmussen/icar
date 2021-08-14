@@ -401,8 +401,9 @@ OBJS=    	$(BUILD)driver.o	        \
 		$(BUILD)mp_wsm6.o		\
 		$(BUILD)cu_driver.o		\
 		$(BUILD)cu_tiedtke.o		\
-		$(BUILD)cu_nsas.o			\
-		$(BUILD)cu_bmj.o			\
+		$(BUILD)cu_nsas.o		\
+		$(BUILD)cu_bmj.o		\
+		$(BUILD)cu_parcel.o		\
 		$(BUILD)advection_driver.o	\
 		$(BUILD)advect.o		\
 		$(BUILD)adv_mpdata.o		\
@@ -666,7 +667,7 @@ $(BUILD)exchangeable_obj.o: $(OBJECTS)exchangeable_obj.f90 $(BUILD)exchangeable_
 $(BUILD)exchangeable_h.o: $(OBJECTS)exchangeable_h.f90 $(BUILD)grid_h.o $(BUILD)variable_h.o $(BUILD)assertions.o
 
 $(BUILD)parcel.o: $(OBJECTS)parcel.f90 $(BUILD)parcel_interfaces.o $(BUILD)assertions.o
-$(BUILD)parcel_interfaces.o: $(BUILD)exchangeable_h.o $(BUILD)exchangeable_obj.o $(BUILD)grid_h.o $(BUILD)assertions.o
+$(BUILD)parcel_interfaces.o: $(BUILD)domain_h.o $(BUILD)exchangeable_h.o $(BUILD)exchangeable_obj.o $(BUILD)grid_h.o $(BUILD)assertions.o
 
 $(BUILD)default_output_metadata.o: $(IO)default_output_metadata.f90 $(BUILD)icar_constants.o $(BUILD)variable_h.o $(BUILD)meta_data_h.o
 
@@ -693,8 +694,7 @@ $(BUILD)boundary_obj.o: $(OBJECTS)boundary_obj.f90 $(BUILD)boundary_h.o					\
 $(BUILD)domain_h.o: $(OBJECTS)domain_h.f90 $(BUILD)options_h.o $(BUILD)exchangeable_h.o \
 					$(BUILD)grid_h.o 	$(BUILD)meta_data_h.o $(BUILD)data_structures.o	\
 					$(BUILD)time_h.o 	$(BUILD)boundary_h.o	 						\
-					$(BUILD)time_io.o 	$(BUILD)io_routines.o
-
+					$(BUILD)time_io.o	$(BUILD)io_routines.o $(BUILD)parcel_interfaces.o
 $(BUILD)domain_obj.o: $(OBJECTS)domain_obj.f90 $(BUILD)domain_h.o $(BUILD)options_h.o $(BUILD)grid_h.o 	\
 					$(BUILD)string.o $(BUILD)assertions.o $(BUILD)geo_reader.o 							\
 					$(BUILD)atm_utilities.o $(BUILD)io_routines.o $(BUILD)co_utilities.o 				\
@@ -786,7 +786,7 @@ $(BUILD)mp_simple.o:$(PHYS)mp_simple.f90 $(BUILD)data_structures.o $(BUILD)optio
 ###################################################################
 #	Convection code
 ###################################################################
-$(BUILD)cu_driver.o:$(PHYS)cu_driver.f90 $(BUILD)cu_tiedtke.o $(BUILD)cu_nsas.o $(BUILD)cu_bmj.o  \
+$(BUILD)cu_driver.o:$(PHYS)cu_driver.f90 $(BUILD)cu_tiedtke.o  $(BUILD)cu_nsas.o $(BUILD)cu_bmj.o $(BUILD)cu_parcel.o  \
 					$(BUILD)data_structures.o $(BUILD)icar_constants.o $(BUILD)domain_h.o
 
 $(BUILD)cu_tiedtke.o:$(PHYS)cu_tiedtke.f90
@@ -796,6 +796,8 @@ $(BUILD)cu_kf.o:$(PHYS)cu_kf.f90
 $(BUILD)cu_nsas.o:$(PHYS)cu_nsas.f90
 
 $(BUILD)cu_bmj.o:$(PHYS)cu_bmj.f90
+
+$(BUILD)cu_parcel.o:$(PHYS)cu_parcel.f90
 
 ###################################################################
 #	Radiation code

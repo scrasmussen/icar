@@ -343,6 +343,7 @@ module icar_constants
     integer, parameter :: kCU_KAINFR     = 3
     integer, parameter :: kCU_NSAS       = 4
     integer, parameter :: kCU_BMJ        = 5
+    integer, parameter :: kCU_PARCEL     = 4
 
     integer, parameter :: kMP_THOMPSON   = 1
     integer, parameter :: kMP_SB04       = 2
