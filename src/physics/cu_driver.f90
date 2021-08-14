@@ -9,6 +9,7 @@ module convection
     use data_structures
     use icar_constants
     use module_cu_tiedtke,  only: tiedtkeinit, CU_TIEDTKE
+    use module_cu_parcel,   only: cu_parcel_init, cu_parcel_physics
     ! use module_cu_kf,       only: kfinit, KFCPS
 
     use options_interface,   only : options_t
@@ -125,6 +126,22 @@ contains
          !                 ids, ide, jds, jde, kds, kde-1)
 
          endif
+         if (options%physics%convection==kCU_PARCEL) then
+             block
+                 integer :: foo_input_buf_size, foo_halo_width
+             call cu_parcel_init(domain%parcels, domain%grid, &
+                 domain%ims, domain%ime, domain%kms, domain%kme, &
+                 domain%jms, domain%jme, domain%its, domain%ite, &
+                 domain%kts, domain%kte, domain%jts, domain%jte, &
+                 domain%z_interface, domain%z, domain%potential_temperature, domain%pressure, &
+                 domain%u, domain%v, domain%w, domain%dz_interface, &
+                 foo_input_buf_size, foo_halo_width)
+
+            print *, "ARTLESS: CU_DRIVER : INIT PARCEL"
+            ! stop "ARTLESS ENDING PROGRAM"
+            end block
+         end if
+
 
     end subroutine init_convection
 
@@ -258,5 +275,20 @@ subroutine convect(domain,options,dt_in)
         ! $omp end parallel
     endif
 
+    if (options%physics%convection==kCU_PARCEL) then
+        ! (domain,options,dt_in) these are coming in
+        block
+        real :: foo_dz
+        integer :: foo_timestep_optional
+        call cu_parcel_physics(domain%parcels, domain%nx_global, domain%ny_global, &
+            domain%ims, domain%ime, domain%kms, domain%kme, &
+            domain%jms, domain%jme, domain%its, domain%ite, &
+            domain%kts, domain%kte, domain%jts, domain%jte, &
+            domain%z_interface, domain%z, domain%temperature, domain%potential_temperature, &
+            domain%pressure, domain%u, domain%v, domain%w, &
+            dt_in, foo_dz, foo_timestep_optional)
+        print *, "ARTLESS: CU_DRIVER"
+        end block
+    end if
 end subroutine convect
 end module convection
