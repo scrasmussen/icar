@@ -58,10 +58,13 @@ module parcel_interface
   public :: exchangeable_parcel, num_parcels_per_image, &
        total_num_parcels, are_parcels_dry, &
        num_parcels_communicated, get_wind_speed, check_buf_size, &
-       current_num_parcels !, parcels_init
+       current_num_parcels, create_parcel
 
   type exchangeable_parcel
      private
+     ! type(parcel_t), allocatable, public :: data_1d(:) => null()
+     integer                             :: parcel_id_count = -1
+     integer, public                     :: max_parcel_count
      type(parcel_t), allocatable, public :: local(:)
      type(parcel_t), allocatable :: buf_north_in(:)[:]
      type(parcel_t), allocatable :: buf_south_in(:)[:]
@@ -95,7 +98,6 @@ module parcel_interface
      integer :: southeast_i=1
      integer :: southwest_i=1
 
-     integer :: parcel_id_count=-1
 
    contains
      private
@@ -103,7 +105,7 @@ module parcel_interface
      procedure, public :: send
      procedure, public :: retrieve
      procedure, public :: exchange
-     procedure, public :: process  ! see physics
+     ! procedure, public :: process  ! see physics
      ! procedure, public :: parcels_init
      generic,   public :: initialize=>convect_const
 
@@ -127,24 +129,24 @@ module parcel_interface
      !   type(options_t), intent(in) :: options
      ! end module subroutine
 
-     module subroutine process(this, nx_global, ny_global, &
-         ims, ime, kms, kme, jms, jme, dt, dz, temperature, z_interface, &
-         its, ite, kts, kte, jts, jte, z_m, potential_temp, pressure, u_in, &
-         v_in, w_in, timestep)
-       implicit none
-       class(exchangeable_parcel), intent(inout) :: this
-       integer, intent(in) :: nx_global, ny_global
-       real, intent(in)    :: dt, dz
-       integer, intent(in) :: ims, ime, kms, kme, jms, jme
-       integer, intent(in) :: its, ite, kts, kte, jts, jte
-       real, intent(in) :: temperature(ims:ime,kms:kme,jms:jme)
-       real, intent(in) :: z_interface(ims:ime,jms:jme)
-       real, intent(in) :: pressure(ims:ime,kms:kme,jms:jme)
-       real, intent(in) :: z_m(ims:ime,kms:kme,jms:jme)
-       class(exchangeable_t), intent(in) :: potential_temp
-       class(exchangeable_t), intent(in), optional :: u_in, v_in, w_in
-       integer, intent(in), optional :: timestep
-     end subroutine
+     ! module subroutine process(this, nx_global, ny_global, &
+     !     ims, ime, kms, kme, jms, jme, dt, dz, temperature, z_interface, &
+     !     its, ite, kts, kte, jts, jte, z_m, potential_temp, pressure, u_in, &
+     !     v_in, w_in, timestep)
+     !   implicit none
+     !   class(exchangeable_parcel), intent(inout) :: this
+     !   integer, intent(in) :: nx_global, ny_global
+     !   real, intent(in)    :: dt, dz
+     !   integer, intent(in) :: ims, ime, kms, kme, jms, jme
+     !   integer, intent(in) :: its, ite, kts, kte, jts, jte
+     !   real, intent(in) :: temperature(ims:ime,kms:kme,jms:jme)
+     !   real, intent(in) :: z_interface(ims:ime,jms:jme)
+     !   real, intent(in) :: pressure(ims:ime,kms:kme,jms:jme)
+     !   real, intent(in) :: z_m(ims:ime,kms:kme,jms:jme)
+     !   class(exchangeable_t), intent(in) :: potential_temp
+     !   class(exchangeable_t), intent(in), optional :: u_in, v_in, w_in
+     !   integer, intent(in), optional :: timestep
+     ! end subroutine
 
      module subroutine convect_const(this, potential_temp, u_in, v_in, w_in, grid, z_m, &
          z_interface, ims, ime, kms, kme, jms, jme, dz_val, &
@@ -280,18 +282,19 @@ module parcel_interface
      end function current_num_parcels
 
      module function create_parcel(parcel_id, its, ite, kts, kte, jts, jte,&
-         ims, ime, kms, kme, jms, jme, z_m, potential_temp, z_interface, &
-         pressure, u_in, v_in, w_in, times_moved) result(parcel)
+         ims, ime, kms, kme, jms, jme) result(parcel)
+     ! , z_m, potential_temp, z_interface, &
+     !     pressure, u_in, v_in, w_in, times_moved)
        integer :: parcel_id
        type(parcel_t) :: parcel
        integer, intent(in)           :: its, ite, kts, kte, jts, jte
        integer, intent(in)           :: ims, ime, kms, kme, jms, jme
-       real, intent(in)              :: z_m(ims:ime,kms:kme,jms:jme)
-       real, intent(in)              :: pressure(ims:ime,kms:kme,jms:jme)
-       class(exchangeable_t), intent(in) :: potential_temp
-       real, intent(in)              :: z_interface(ims:ime,jms:jme)
-       class(exchangeable_t), intent(in)    :: u_in, v_in, w_in
-       integer, intent(in), optional :: times_moved
+       ! real, intent(in)              :: z_m(ims:ime,kms:kme,jms:jme)
+       ! real, intent(in)              :: pressure(ims:ime,kms:kme,jms:jme)
+       ! class(exchangeable_t), intent(in) :: potential_temp
+       ! real, intent(in)              :: z_interface(ims:ime,jms:jme)
+       ! class(exchangeable_t), intent(in)    :: u_in, v_in, w_in
+       ! integer, intent(in), optional :: times_moved
      end function
 
      module subroutine initialize_from_file()

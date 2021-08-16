@@ -253,7 +253,7 @@ contains
          if (options%physics%convection==kCU_PARCEL) then
              block
                  integer :: foo_input_buf_size, foo_halo_width
-             call cu_parcel_init(domain%parcels, domain%grid, &
+             call cu_parcel_init(domain%parcels, & ! domain%grid, &
                  domain%ims, domain%ime, domain%kms, domain%kme, &
                  domain%jms, domain%jme, domain%its, domain%ite, &
                  domain%kts, domain%kte, domain%jts, domain%jte, &
@@ -539,7 +539,7 @@ subroutine convect(domain,options,dt_in)
             domain%kts, domain%kte, domain%jts, domain%jte, &
             domain%z_interface, domain%z, domain%temperature, domain%potential_temperature, &
             domain%pressure, domain%u, domain%v, domain%w, &
-            dt_in, foo_dz, foo_timestep_optional)
+            dt_in, domain%dz_interface, foo_timestep_optional)
         print *, "ARTLESS: CU_DRIVER"
         end block
     end if
