@@ -1,5 +1,4 @@
-!> ----------------------------------------------------------------------------
-!!  Model Initialization includes allocating memory for boundary and domain
+!> ----------------------------------------------------------------------------!!  Model Initialization includes allocating memory for boundary and domain
 !!      data structures.  It reads all of the options from the namelist
 !!      file (or files).  It also reads in Lat/Lon and Terrain data.  This module
 !!      also sets up geographic (and vertical) look uptables for the forcing data
@@ -24,10 +23,10 @@ module initialization
     use microphysics,               only : mp_init
     use advection,                  only : adv_init
     use radiation,                  only : radiation_init
-    use convection,                 only : init_convection
+    use convection,                 only : convection_init
     use planetary_boundary_layer,   only : pbl_init
     use land_surface,               only : lsm_init
-    use io_routines,          only : io_read, io_write
+    use io_routines,                only : io_read, io_write
     use mod_atm_utilities,          only : init_atm_utilities
     use wind,                       only : update_winds
 
@@ -135,7 +134,9 @@ contains
         ! initialize microphysics code (e.g. compute look up tables in Thompson et al)
         call mp_init(options) !this could easily be moved to init_model...
 
-        call init_convection(domain,options)
+        call parcel_init(domain,options)
+
+        call convection_init(domain,options)
 
         call pbl_init(domain,options)
 
@@ -167,7 +168,17 @@ contains
 
     end subroutine welcome_message
 
+    subroutine parcel_init(domain, options)
+        use module_cu_parcel,   only: cu_parcels_init
+        type(domain_t),  intent(inout) :: domain
+        type(options_t), intent(in) :: options
 
+        call domain%parcels%init_position(options, domain%grid)
+        call cu_parcels_init(domain%parcels, domain%grid, &
+            domain%z_interface, domain%z, domain%potential_temperature, &
+            domain%pressure, domain%u, domain%v, domain%w, &
+            domain%dz_interface)
+    end subroutine parcel_init
 ! ------------------------------------------------------------------------------------------
 !-==== Model Domain Section ====
 !

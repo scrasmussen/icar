@@ -1874,10 +1874,9 @@ contains
         integer :: name_unit, stat
 
         integer :: total_parcels                   ! total number or air parcels
-        logical :: parcel_is_dry                   ! can the parcel become saturated
 
         ! define the namelist
-        namelist /parcel_parameters/ total_parcels, parcel_is_dry
+        namelist /parcel_parameters/ total_parcels
 
         ! read the namelist options
         open(io_newunit(name_unit), file=filename)
@@ -1887,12 +1886,10 @@ contains
         if (stat .ne. 0) then
            ! set default values
            total_parcels = 0
-           parcel_is_dry = .false.
         end if
 
         ! store everything in the lsm_options structure
         parcel_options%total_parcels = total_parcels
-        parcel_options%parcel_is_dry = parcel_is_dry
 
         ! copy the data back into the global options data structure
         options%parcel_options = parcel_options
