@@ -166,7 +166,6 @@ module options_types
     ! ------------------------------------------------
     type parcel_options_type
         integer :: total_parcels
-        logical :: parcel_is_dry
     end type parcel_options_type
 
     ! ------------------------------------------------

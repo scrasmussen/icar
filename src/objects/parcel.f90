@@ -21,234 +21,188 @@ submodule(parcel_interface) parcel_implementation
     logical, parameter :: init_theta = .false.
     logical, parameter :: init_velocity = .true.
     logical, parameter :: count_p_comm = .false.
-    integer, save      :: parcels_communicated[*]
-    integer, save      :: parcels_per_image
-    integer, save      :: local_buf_size
-    real,    save      :: input_wind
-    logical, save      :: dry_air_parcels
+    integer            :: parcels_communicated[*]
+    integer            :: parcels_per_image
+    integer            :: image_parcel_count
+    integer            :: local_buf_size
+    real               :: input_wind
+    logical            :: dry_air_parcels
+    integer            :: total_parcels
     ! integer, parameter :: parcels_per_image=1
     ! integer, parameter :: local_buf_size=4*parcels_per_image
     ! logical, parameter :: dry_air_parcels=.true.
     ! -----------------------------------------------
 
-    integer, parameter :: default_buf_size=1
-    integer, parameter :: default_halo_size=1
-    integer, save, allocatable :: neighbors(:)
-    integer, save :: north_con_neighbor, south_con_neighbor, buf_size, halo_size
-    integer, save :: east_con_neighbor, west_con_neighbor
-    integer, save :: northeast_con_neighbor, northwest_con_neighbor
-    integer, save :: southeast_con_neighbor, southwest_con_neighbor
+    integer, parameter   :: default_buf_size=1
+    integer, parameter   :: default_halo_size=1
+    integer, allocatable :: neighbors(:)
+    integer       :: north_con_neighbor, south_con_neighbor, buf_size, halo_size
+    integer       :: east_con_neighbor, west_con_neighbor
+    integer       :: northeast_con_neighbor, northwest_con_neighbor
+    integer       :: southeast_con_neighbor, southwest_con_neighbor
 
 contains
-    module procedure convect_const
-        integer :: me, create, seed(34)
-        real :: random_start(3), x, z, y
-        real :: z_meters, z_interface_val, theta_val
-        real :: pressure_val, exner_val, temp_val, water_vapor_val
-        real :: u_val, v_val, w_val
-        integer :: x0, x1, z0, z1, y0, y1
-        logical :: calc
+    module procedure init_position
+      integer :: i, seed(34)
 
-        me = this_image()
-        call initialize_from_file()
-        parcels_communicated = 0
-        if (parcels_per_image .eq. 0) then
-            if (me .eq. 1) print *, "No air parcels used"
-            return
+      if (options%physics%convection /= 4) then
+          return
+      end if
+
+      ! compute number of parcels per image
+      total_parcels = options%parcel_options%total_parcels
+      image_parcel_count = total_parcels / num_images()
+      if (this_image() .le. mod(total_parcels, num_images())) then
+          image_parcel_count = image_parcel_count + 1
+      end if
+
+      ! allocate boundary regions
+      if (allocated(this%local)) deallocate(this%local)
+      this%north_boundary = (grid%yimg == grid%yimages)
+      this%south_boundary = (grid%yimg == 1)
+      this%east_boundary  = (grid%ximg == grid%ximages)
+      this%west_boundary  = (grid%ximg == 1)
+
+      allocate(this%local(image_parcel_count * 4))
+
+      ! setup random number generator for parcel location
+      seed = -1
+      call random_seed(PUT=seed)
+      call random_init(.true.,.true.)
+
+      do i=1,image_parcel_count
+          call this%create_parcel_id()
+          this%local(i) = create_empty_parcel(this%parcel_id_count, grid)
+      end do
+
+      allocate( this%buf_north_in(buf_size)[*])
+      allocate( this%buf_south_in(buf_size)[*])
+      allocate( this%buf_east_in(buf_size)[*])
+      allocate( this%buf_west_in(buf_size)[*])
+      allocate( this%buf_northeast_in(buf_size)[*])
+      allocate( this%buf_northwest_in(buf_size)[*])
+      allocate( this%buf_southeast_in(buf_size)[*])
+      allocate( this%buf_southwest_in(buf_size)[*])
+
+      call this%setup_neighbors(grid)
+      print *, "Total number of convected air parcels:", options%parcel_options%total_parcels
+    end procedure
+
+
+    module procedure create_empty_parcel
+    real :: random_start(3), x, z, y
+
+    call random_number(random_start)
+    x = grid%its + (random_start(1) * (grid%ite-grid%its))
+    z = grid%kts + (random_start(3) * (grid%kte-grid%kts))
+    y = grid%jts + (random_start(2) * (grid%jte-grid%jts))
+
+    if (x .lt. grid%its .or. &
+        x .gt. grid%ite .or. &
+        z .lt. grid%kts .or. &
+        z .gt. grid%kte .or. &
+        y .lt. grid%jts .or. &
+        y .gt. grid%jte) then
+        print *, "x:", grid%its, "<", x, "<", grid%ite
+        print *, "z:", grid%kts, "<", z, "<", grid%kte
+        print *, "y:", grid%jts, "<", y, "<", grid%jte
+        stop "PARCEL: x,y,z is out of bounds"
+    end if
+
+    ! filler values, the rest are set later
+    parcel = parcel_t( &
+        parcel_id, .true., 0, x, &
+        y, z, 0.0, 0.0, &
+        0.0, 0.0, 0.0, 0.0, &
+        0.0, 0.0, 0.0, 0.0, &
+        0.0, 0.0)
+    end procedure
+
+
+    module procedure move_if_needed
+    integer :: its, ite, kts, kte, jts, jte
+    real :: x, y, z, xx, yy
+    !-----------------------------------------------------------------
+    ! Move parcel if needed
+    !-----------------------------------------------------------------
+    x = parcel%x; y = parcel%y; z = parcel%z
+    its = grid%its; ite = grid%ite
+    kts = grid%kts; kte = grid%kte
+    jts = grid%jts; jte = grid%jte
+
+    if (caf_comm_message .eqv. .true.) &
+        call parcel%caf_comm_message(grid)
+
+    xx = x
+    yy = y
+    ! If parcel is getting wrapped the x and y values need to be
+    ! properly updated
+    if (wrap_neighbors .eqv. .true.) then
+        if (x > grid%nx_global) then
+            ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
+            !     , parcel%parcel_id
+            x = x - grid%nx_global + 1
+            xx = xx + 2
+        else if (x < 1) then
+            ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
+            !     , parcel%parcel_id
+            x = x + grid%nx_global - 1
+            xx = xx - 2
         end if
 
-        me = this_image()
-        ! if (present(input_buf_size)) then
-        !   buf_size = input_buf_size
-        !   print *, 'using input_buf_size'
-        ! else
-        !   buf_size = default_buf_size
-        !   print *, 'using default_buf_size'
-        ! end if
-        buf_size = parcels_per_image
+        if (y > grid%ny_global) then
+            ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
+            !     , parcel%parcel_id
+            y = y - grid%ny_global + 1
+            yy = yy + 2
+        else if (y < 1) then
+            ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
+            !     , parcel%parcel_id
+            y = y + grid%ny_global - 1
+            yy = yy - 2
+        end if
+    end if
 
-        if (present(halo_width)) then
-            halo_size = halo_width
+    ! Check values to know where to send parcel
+    if (yy .lt. jts-1) then      ! "jts  <   y    <  jte"
+        if (xx .lt. its-1) then
+            call this%put_southwest(parcel)
+            if (count_p_comm .eqv. .true.) &
+                parcels_communicated = parcels_communicated + 1
+        else if (xx .gt. ite+1) then
+            call this%put_southeast(parcel)
+            if (count_p_comm .eqv. .true.) &
+                parcels_communicated = parcels_communicated + 1
         else
-            halo_size = default_halo_size
+            call this%put_south(parcel)
+            if (count_p_comm .eqv. .true.) &
+                parcels_communicated = parcels_communicated + 1
         end if
-
-        ! if (me .eq. 1) print *, "Buf size is", buf_size
-
-        if (allocated(this%local)) deallocate(this%local)
-        this%north_boundary = (grid%yimg == grid%yimages)
-        this%south_boundary = (grid%yimg == 1)
-        this%east_boundary  = (grid%ximg == grid%ximages)
-        this%west_boundary  = (grid%ximg == 1)
-
-        allocate(this%local(parcels_per_image * 4))
-        if (parcel_create_message .eqv. .true.) then
-            if (me == 1) then
-                print*, "Creating", parcels_per_image, "parcels per image"
-            end if
-        end if
-
-        seed = -1
-        call random_seed(PUT=seed)
-        call random_init(.true.,.true.)
-
-        do create=1,parcels_per_image
-            call this%create_parcel_id()
-            this%local(create) = create_parcel(this%parcel_id_count, &
-                its, ite, kts, kte, jts, jte, ims, ime, kms, kme, jms, jme)!, &
-!                z_m, potential_temp, z_interface, pressure, u_in, v_in, w_in)
-
-            ! this%local(create) = parcel_t(this%parcel_id_count, .true., &
-            !     .false., x, y, z, u_val, v_val, w_val, z_meters, z_interface_val, &
-            !     pressure_val, temp_val, theta_val, 0, water_vapor_val, 0)
-        end do
-
-
-        if (parcel_create_message .eqv. .true.) then
-            print *, "ALLOCATING BUFFERS OF SIZE", buf_size
-        end if
-        allocate( this%buf_north_in(buf_size)[*])
-        allocate( this%buf_south_in(buf_size)[*])
-        allocate( this%buf_east_in(buf_size)[*])
-        allocate( this%buf_west_in(buf_size)[*])
-        allocate( this%buf_northeast_in(buf_size)[*])
-        allocate( this%buf_northwest_in(buf_size)[*])
-        allocate( this%buf_southeast_in(buf_size)[*])
-        allocate( this%buf_southwest_in(buf_size)[*])
-
-        call this%setup_neighbors(grid)
+    else if (yy .gt. jte+1) then ! jts will be 1
+        if (xx .lt. its-1) then
+            call this%put_northwest(parcel)
+            if (count_p_comm .eqv. .true.) &
+                parcels_communicated = parcels_communicated + 1
+        else if (xx .gt. ite+1) then
+            call this%put_northeast(parcel)
+            if (count_p_comm .eqv. .true.) &
+                parcels_communicated = parcels_communicated + 1
+        else
+            call this%put_north(parcel)
+            if (count_p_comm .eqv. .true.) &
+                parcels_communicated = parcels_communicated + 1
+        endif
+    else if (xx .lt. its-1) then ! "its  <   x    <  ite"
+        call this%put_west(parcel) ! need to double check this!
+        if (count_p_comm .eqv. .true.) &
+            parcels_communicated = parcels_communicated + 1
+    else if (xx .gt. ite+1) then
+        call this%put_east(parcel)
+        if (count_p_comm .eqv. .true.) &
+            parcels_communicated = parcels_communicated + 1
+    end if
     end procedure
 
-    module procedure create_parcel
-        real :: random_start(3), x, z, y
-
-        call random_number(random_start)
-        x = its + (random_start(1) * (ite-its))
-        z = kts + (random_start(3) * (kte-kts))
-        y = jts + (random_start(2) * (jte-jts))
-
-        if (x .lt. its .or. &
-            x .gt. ite .or. &
-            z .lt. kts .or. &
-            z .gt. kte .or. &
-            y .lt. jts .or. &
-            y .gt. jte) then
-            print *, "x:", its, "<", x, "<", ite
-            print *, "z:", kts, "<", z, "<", kte
-            print *, "y:", jts, "<", y, "<", jte
-            stop "x,y,z is out of bounds"
-        end if
-
-        ! x0 = floor(x); z0 = floor(z); y0 = floor(y);
-        ! x1 = ceiling(x); z1 = ceiling(z); y1 = ceiling(y);
-
-        ! associate (A => z_m)
-        !     z_meters = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
-        !         A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
-        !         A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
-        ! end associate
-
-
-        parcel = parcel_t(parcel_id, .true., &
-            0, x, y, z, &
-            ! filler values, the rest are set later
-            0.0, 0.0, 0.0, 0.0,  &
-            0.0, 0.0, 0.0, 0.0,  &
-            0.0, 0.0, 0.0, 0.0)
-        ! u_val, v_val, w_val, z_meters, z_interface_val, &
-        !     pressure_val, temp_val, theta_val, velocity, water_vapor_val, &
-        !     cloud_water, relative_humidity_in)
-    end procedure
-
-
-    !         !-----------------------------------------------------------------
-    !         ! Move parcel if needed
-    !         !-----------------------------------------------------------------
-    !         associate (x => parcel%x, y => parcel%y, z => parcel%z)
-    !             if (caf_comm_message .eqv. .true.) then
-    !                 if (  x .lt. its-1 .or. x .gt. ite+1 .or. &
-    !                     z .lt. kms-1 .or. z .gt. kme   .or. &
-    !                     y .lt. jts-1 .or. y .gt. jte+1 .or. &
-    !                     x .lt. 1 .or. x .gt. nx_global .or. &
-    !                     y .lt. 1 .or. y .gt. ny_global &
-    !                     ) then
-    !                     print *, "PUTTING", parcel%x, parcel%y, parcel%z_meters, &
-    !                         "FROM", this_image(), "id:", parcel%parcel_id, &
-    !                         "M", ims,ime, kms, kme, jms, jme, "T", its,ite,jts,jte
-    !                 end if
-    !             end if
-
-    !             xx = x
-    !             yy = y
-    !             ! If parcel is getting wrapped the x and y values need to be
-    !             ! properly updated
-    !             if (wrap_neighbors .eqv. .true.) then
-    !                 if (x > nx_global) then
-    !                     ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
-    !                     !     , parcel%parcel_id
-    !                     x = x - nx_global + 1
-    !                     xx = xx + 2
-    !                 else if (x < 1) then
-    !                     ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
-    !                     !     , parcel%parcel_id
-    !                     x = x + nx_global - 1
-    !                     xx = xx - 2
-    !                 end if
-
-    !                 if (y > ny_global) then
-    !                     ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
-    !                     !     , parcel%parcel_id
-    !                     y = y - ny_global + 1
-    !                     yy = yy + 2
-    !                 else if (y < 1) then
-    !                     ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
-    !                     !     , parcel%parcel_id
-    !                     y = y + ny_global - 1
-    !                     yy = yy - 2
-    !                 end if
-    !             end if
-
-    !             ! Check values to know where to send parcel
-    !             if (yy .lt. jts-1) then      ! "jts  <   y    <  jte"
-    !                 if (xx .lt. its-1) then
-    !                     call this%put_southwest(parcel)
-    !                     if (count_p_comm .eqv. .true.) &
-    !                         parcels_communicated = parcels_communicated + 1
-    !                 else if (xx .gt. ite+1) then
-    !                     call this%put_southeast(parcel)
-    !                     if (count_p_comm .eqv. .true.) &
-    !                         parcels_communicated = parcels_communicated + 1
-    !                 else
-    !                     call this%put_south(parcel)
-    !                     if (count_p_comm .eqv. .true.) &
-    !                         parcels_communicated = parcels_communicated + 1
-    !                 end if
-    !             else if (yy .gt. jte+1) then ! jts will be 1
-    !                 if (xx .lt. its-1) then
-    !                     call this%put_northwest(parcel)
-    !                     if (count_p_comm .eqv. .true.) &
-    !                         parcels_communicated = parcels_communicated + 1
-    !                 else if (xx .gt. ite+1) then
-    !                     call this%put_northeast(parcel)
-    !                     if (count_p_comm .eqv. .true.) &
-    !                         parcels_communicated = parcels_communicated + 1
-    !                 else
-    !                     call this%put_north(parcel)
-    !                     if (count_p_comm .eqv. .true.) &
-    !                         parcels_communicated = parcels_communicated + 1
-    !                 endif
-    !             else if (xx .lt. its-1) then ! "its  <   x    <  ite"
-    !                 call this%put_west(parcel) ! need to double check this!
-    !                 if (count_p_comm .eqv. .true.) &
-    !                     parcels_communicated = parcels_communicated + 1
-    !             else if (xx .gt. ite+1) then
-    !                 call this%put_east(parcel)
-    !                 if (count_p_comm .eqv. .true.) &
-    !                     parcels_communicated = parcels_communicated + 1
-    !             end if
-    !         end associate
-    !         end if
-    !         end associate
     !     end do
 
     !     if (brunt_vaisala_data .eqv. .true.) then
@@ -347,7 +301,6 @@ contains
   end procedure
 
   module procedure retrieve_buf
-    implicit none
     integer :: i, buf_n, local_i, local_n
     buf_n = ubound(buf, dim=1)
     local_n = ubound(this%local, dim=1)
@@ -508,7 +461,6 @@ contains
 
   module procedure create_parcel_id
     use iso_fortran_env, only : int32
-    implicit none
     integer :: id_range, h
     if (this%parcel_id_count .eq. -1) then
       id_range = huge(int32) / num_images()
@@ -519,7 +471,6 @@ contains
   end procedure
 
   module procedure setup_neighbors
-    implicit none
     integer :: current, n_neighbors, n_images
 
     ! --- setup boundaries ---
@@ -720,11 +671,12 @@ contains
   end function trilinear_interpolation
 
   module procedure total_num_parcels
-    total_num_parcels = parcels_per_image * num_images()
+     ! total_num_parcels = image_parcel_count * num_images()
+     total_num_parcels = -1
   end procedure
 
-  module procedure num_parcels_per_image
-    num_parcels_per_image = parcels_per_image
+  module procedure get_image_parcel_count
+    get_image_parcel_count = image_parcel_count
   end procedure
 
   module procedure num_parcels_communicated
@@ -758,14 +710,8 @@ contains
   end procedure
 
 
-  ! module procedure create_parcel
-  !   integer :: index
-  !   integer :: a
-  !   a = -1
-  !   ! print *, "hi!"
-  ! end procedure create_parcel
   module procedure check_buf_size
-    if (i .gt. parcels_per_image) then
+    if (i .gt. image_parcel_count) then
        print *, this_image(), ": ERROR put buffer overflow"
        call exit
     end if
@@ -798,10 +744,47 @@ contains
     read(unit=unit, nml=parcel_parameters, iostat=rc)
     close(unit)
 
-    parcels_per_image = nint(total_parcels / real(num_images()))
-    local_buf_size = parcels_per_image * 4
+    image_parcel_count = nint(total_parcels / real(num_images()))
+    local_buf_size = image_parcel_count * 4
     dry_air_parcels = parcel_is_dry
     input_wind = wind_speed
+  end procedure initialize_from_file
+
+
+  module procedure parcel_bounds_check
+  if (parcel%x .lt. grid%its-1 .or. parcel%z .lt. grid%kts-1 .or. &
+      parcel%y .lt. grid%jts-1 .or. parcel%x .gt. grid%ite+1 .or. &
+      parcel%z .gt. grid%kte+1 .or. parcel%y .gt. grid%jte+1) then
+      print *, "parcel", parcel%parcel_id, "on image", this_image()
+      print *, "x:", grid%its, "<", parcel%x, "<", grid%ite, "with halo 2"
+      print *, "z:", grid%kts, "<", parcel%z, "<", grid%kte, "with halo 2"
+      print *, "y:", grid%jts, "<", parcel%y, "<", grid%jte, "with halo 2"
+      stop "CU_PARCEL: x,y,z is out of bounds"
+  end if
+  end procedure parcel_bounds_check
+
+
+  module procedure write_bv_data
+  integer :: image, me, i
+  logical :: exist
+  character(len=32) :: filename
+  me = this_image()
+  do image=1,num_images()
+      if (me .eq. image) then
+          write (filename,"(A17)") "brunt_vaisala.txt"
+          inquire(file=filename, exist=exist)
+          if (exist) then
+              open(unit=me, file=filename, status='old', position='append')
+          else
+              open(unit=me, file=filename, status='new')
+          end if
+          do i=1,bv_i-1
+              write(me,*) me, timestep, parcel_id(i), bv(i)
+          end do
+          close(me)
+      end if
+      sync all
+  end do
   end procedure
 
 end submodule

@@ -15,9 +15,11 @@ type parcel_t
     real :: relative_humidity
     contains
     procedure :: move_to
+    procedure :: print_parcel
+    procedure :: caf_comm_message
 end type parcel_t
 contains
-subroutine move_to(from,to)
+  subroutine move_to(from,to)
     class(parcel_t), intent(inout) :: from
     type(parcel_t), intent(inout)  :: to
     ! handle the from
@@ -38,7 +40,43 @@ subroutine move_to(from,to)
     to%water_vapor = from%water_vapor
     to%cloud_water = from%cloud_water
     to%relative_humidity = from%relative_humidity
-end subroutine move_to
+  end subroutine move_to
+
+  subroutine print_parcel(this)
+    class(parcel_t), intent(inout) :: this
+    print *, "--- parcel", this%parcel_id, "---"
+    print *, "exists", this%exists
+    print *, "moved", this%moved
+    print *, "x,y,z", this%x, this%y, this%z
+    print *, "u,v,w", this%u, this%v, this%w
+    print *, "z_meters", this%z_meters
+    print *, "z_interface", this%z_interface
+    print *, "pressure", this%pressure
+    print *, "temperature", this%temperature
+    print *, "potential_temp", this%potential_temp
+    print *, "velocity", this%velocity
+    print *, "water_vapor", this%water_vapor
+    print *, "cloud_water", this%cloud_water
+    print *, "relative_humidity", this%relative_humidity
+    print *, "------"
+  end subroutine print_parcel
+
+  subroutine caf_comm_message(parcel, grid)
+    use grid_interface, only : grid_t
+    class(parcel_t), intent(in) :: parcel
+    type(grid_t), intent(in) :: grid
+    if (parcel%x .lt. grid%its-1 .or. parcel%x .gt. grid%ite+1 .or. &
+        parcel%z .lt. grid%kms-1 .or. parcel%z .gt. grid%kme   .or. &
+        parcel%y .lt. grid%jts-1 .or. parcel%y .gt. grid%jte+1 .or. &
+        parcel%x .lt. 1 .or. parcel%x .gt. grid%nx_global .or. &
+        parcel%y .lt. 1 .or. parcel%y .gt. grid%ny_global &
+        ) then
+    print *, "PUTTING", parcel%x, parcel%y, parcel%z_meters, &
+        "FROM", this_image(), "id:", parcel%parcel_id, &
+        "M", grid%ims, grid%ime, grid%kms, grid%kme, grid%jms, grid%jme, &
+        "T", grid%its, grid%ite, grid%jts, grid%jte
+    end if
+  end subroutine caf_comm_message
 
   ! not being used right now
   function constructor() result(this)
@@ -46,20 +84,23 @@ end subroutine move_to
   end function constructor
 end module parcel_type_interface
 
+
+
 module parcel_interface
   use grid_interface, only : grid_t
-  use iso_c_binding, only : c_int
+  use options_interface, only : options_t
+  use iso_c_binding, only : c_int !
   use parcel_type_interface, only : parcel_t
   use exchangeable_interface, only : exchangeable_t
 
   implicit none
 
   private
-  public :: exchangeable_parcel, num_parcels_per_image, &
+  public :: exchangeable_parcel, &
        total_num_parcels, are_parcels_dry, &
        num_parcels_communicated, get_wind_speed, check_buf_size, &
-       current_num_parcels, create_parcel
-
+       current_num_parcels, create_empty_parcel, get_image_parcel_count, &
+       write_bv_data
   type exchangeable_parcel
      private
      ! type(parcel_t), allocatable, public :: data_1d(:) => null()
@@ -88,7 +129,6 @@ module parcel_interface
      logical :: wrapped_east=.false.
      logical :: wrapped_west=.false.
 
-
      integer :: north_i=1
      integer :: south_i=1
      integer :: east_i=1
@@ -101,13 +141,18 @@ module parcel_interface
 
    contains
      private
-     procedure, public :: convect_const
      procedure, public :: send
      procedure, public :: retrieve
      procedure, public :: exchange
      ! procedure, public :: process  ! see physics
      ! procedure, public :: parcels_init
-     generic,   public :: initialize=>convect_const
+     ! procedure, public :: convect_const
+     ! generic,   public :: initialize=>convect_const
+     procedure, public :: init_position
+     procedure, public :: get_image_parcel_count
+     procedure, public :: move_if_needed
+     procedure, public :: parcel_bounds_check
+     procedure, public :: write_bv_data
 
      procedure :: put_north
      procedure :: put_south
@@ -148,117 +193,121 @@ module parcel_interface
      !   integer, intent(in), optional :: timestep
      ! end subroutine
 
-     module subroutine convect_const(this, potential_temp, u_in, v_in, w_in, grid, z_m, &
-         z_interface, ims, ime, kms, kme, jms, jme, dz_val, &
-         its, ite, kts, kte, jts, jte, pressure, input_buf_size, halo_width)
+     module subroutine init_position(this, options, grid)
        class(exchangeable_parcel), intent(inout) :: this
-       class(exchangeable_t), intent(in)    :: potential_temp
-       class(exchangeable_t), intent(in)    :: u_in, v_in, w_in
-       type(grid_t), intent(in)      :: grid
-       real, intent(in)              :: z_m(ims:ime,kms:kme,jms:jme)
-       real, intent(in)              :: pressure(ims:ime,kms:kme,jms:jme)
-       real, intent(in)              :: z_interface(ims:ime,jms:jme)
-       integer, intent(in)           :: ims, ime, kms, kme, jms, jme
-       integer, intent(in)           :: its, ite, kts, kte, jts, jte
-       real, intent(in)              :: dz_val
-       integer, intent(in), optional :: input_buf_size
-       integer, intent(in), optional :: halo_width
+       type(options_t), intent(in) :: options
+       type(grid_t),    intent(in) :: grid
+     end subroutine
+
+     ! module subroutine convect_const(this, potential_temp, u_in, v_in, w_in, grid, z_m, &
+     !     z_interface, ims, ime, kms, kme, jms, jme, dz_val, &
+     !     its, ite, kts, kte, jts, jte, pressure, input_buf_size, halo_width)
+     !   class(exchangeable_parcel), intent(inout) :: this
+     !   class(exchangeable_t), intent(in)    :: potential_temp
+     !   class(exchangeable_t), intent(in)    :: u_in, v_in, w_in
+     !   type(grid_t), intent(in)      :: grid
+     !   real, intent(in)              :: z_m(ims:ime,kms:kme,jms:jme)
+     !   real, intent(in)              :: pressure(ims:ime,kms:kme,jms:jme)
+     !   real, intent(in)              :: z_interface(ims:ime,jms:jme)
+     !   integer, intent(in)           :: ims, ime, kms, kme, jms, jme
+     !   integer, intent(in)           :: its, ite, kts, kte, jts, jte
+     !   real, intent(in)              :: dz_val
+     !   integer, intent(in), optional :: input_buf_size
+     !   integer, intent(in), optional :: halo_width
+     ! end subroutine
+
+     module subroutine move_if_needed(this, parcel, grid)
+       class(exchangeable_parcel), intent(inout) :: this
+       type(parcel_t), intent(inout) :: parcel
+       type(grid_t), intent(in) :: grid
      end subroutine
 
      module subroutine send(this)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
      end subroutine
 
      module subroutine load_buf(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine retrieve_buf(this, buf)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: buf(:)[*]
      end subroutine
 
      module subroutine retrieve(this, no_sync)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        logical,               intent(in),   optional :: no_sync
      end subroutine
 
      module subroutine exchange(this)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
      end subroutine
 
      module subroutine put_north(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_south(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_east(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_west(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_northeast(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_northwest(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_southeast(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine put_southwest(this, parcel)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(parcel_t), intent(inout) :: parcel
      end subroutine
 
      module subroutine create_parcel_id(this)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
      end subroutine
 
      module subroutine setup_neighbors(this,grid)
-       implicit none
        class(exchangeable_parcel), intent(inout) :: this
        type(grid_t), intent(in) :: grid
      end subroutine
+
+     module subroutine parcel_bounds_check(this, parcel, grid)
+       class(exchangeable_parcel), intent(in) :: this
+       type(parcel_t), intent(in) :: parcel
+       type(grid_t), intent(in) :: grid
+     end subroutine parcel_bounds_check
 
      module function total_num_parcels()
        integer :: total_num_parcels
      end function total_num_parcels
 
-     module function num_parcels_per_image()
-       integer :: num_parcels_per_image
-     end function num_parcels_per_image
+     module function get_image_parcel_count(this)
+       class(exchangeable_parcel), intent(inout) :: this
+       integer :: get_image_parcel_count
+     end function get_image_parcel_count
 
      module function are_parcels_dry()
        logical :: are_parcels_dry
@@ -281,14 +330,16 @@ module parcel_interface
        type(exchangeable_parcel),intent(in) :: convection_obj
      end function current_num_parcels
 
-     module function create_parcel(parcel_id, its, ite, kts, kte, jts, jte,&
-         ims, ime, kms, kme, jms, jme) result(parcel)
+     module function create_empty_parcel(parcel_id, grid)  result(parcel)
+     ! its, ite, kts, kte, jts, jte,&
+     !     ims, ime, kms, kme, jms, jme)
      ! , z_m, potential_temp, z_interface, &
      !     pressure, u_in, v_in, w_in, times_moved)
        integer :: parcel_id
        type(parcel_t) :: parcel
-       integer, intent(in)           :: its, ite, kts, kte, jts, jte
-       integer, intent(in)           :: ims, ime, kms, kme, jms, jme
+       type(grid_t)   :: grid
+       ! integer, intent(in)           :: its, ite, kts, kte, jts, jte
+       ! integer, intent(in)           :: ims, ime, kms, kme, jms, jme
        ! real, intent(in)              :: z_m(ims:ime,kms:kme,jms:jme)
        ! real, intent(in)              :: pressure(ims:ime,kms:kme,jms:jme)
        ! class(exchangeable_t), intent(in) :: potential_temp
@@ -300,10 +351,18 @@ module parcel_interface
      module subroutine initialize_from_file()
      end subroutine
 
+     module subroutine write_bv_data(this, bv, bv_i, parcel_id, &
+         timestep, buf_size)
+       class(exchangeable_parcel), intent(in) :: this
+       real, intent(in) :: bv(buf_size)
+       integer, intent(in) :: parcel_id(buf_size)
+       integer, intent(in) :: bv_i, timestep, buf_size
+     end subroutine
+
      module subroutine dry_lapse_rate(pressure, temperature, potential_temp, &
           z_displacement)
        real, intent(inout) :: pressure, temperature, potential_temp
        real, intent(in) :: z_displacement
      end subroutine
-  end interface
+ end interface
 end module parcel_interface
