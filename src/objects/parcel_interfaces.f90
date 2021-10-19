@@ -85,7 +85,7 @@ contains
 end module parcel_type_interface
 
 
-
+! --- Module Parcel Interface: defines parcel memory structure and movement
 module parcel_interface
   use grid_interface, only : grid_t
   use options_interface, only : options_t
@@ -97,15 +97,15 @@ module parcel_interface
 
   private
   public :: exchangeable_parcel, &
-       total_num_parcels, are_parcels_dry, &
-       num_parcels_communicated, get_wind_speed, check_buf_size, &
-       current_num_parcels, create_empty_parcel, get_image_parcel_count, &
-       write_bv_data
+       total_num_parcels,  &
+       num_parcels_communicated, check_buf_size, &
+       image_num_parcels, create_empty_parcel, write_bv_data
   type exchangeable_parcel
      private
      ! type(parcel_t), allocatable, public :: data_1d(:) => null()
      integer                             :: parcel_id_count = -1
      integer, public                     :: max_parcel_count
+     integer, public, allocatable        :: image_np[:]
      type(parcel_t), allocatable, public :: local(:)
      type(parcel_t), allocatable :: buf_north_in(:)[:]
      type(parcel_t), allocatable :: buf_south_in(:)[:]
@@ -149,7 +149,7 @@ module parcel_interface
      ! procedure, public :: convect_const
      ! generic,   public :: initialize=>convect_const
      procedure, public :: init_position
-     procedure, public :: get_image_parcel_count
+     procedure, public :: image_num_parcels
      procedure, public :: move_if_needed
      procedure, public :: parcel_bounds_check
      procedure, public :: write_bv_data
@@ -300,14 +300,15 @@ module parcel_interface
        type(grid_t), intent(in) :: grid
      end subroutine parcel_bounds_check
 
-     module function total_num_parcels()
+     module function total_num_parcels(this)
+       class(exchangeable_parcel), intent(inout) :: this
        integer :: total_num_parcels
      end function total_num_parcels
 
-     module function get_image_parcel_count(this)
-       class(exchangeable_parcel), intent(inout) :: this
-       integer :: get_image_parcel_count
-     end function get_image_parcel_count
+     module function image_num_parcels(this)
+       class(exchangeable_parcel), intent(in) :: this
+       integer :: image_num_parcels
+     end function image_num_parcels
 
      module function are_parcels_dry()
        logical :: are_parcels_dry
