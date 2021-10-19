@@ -8,19 +8,11 @@ submodule(parcel_interface) parcel_implementation
 
     ! ----- PARAMETERS TO TUNE CONVECTION MODEL -----
     logical, parameter :: debug = .false.
-    logical, parameter :: wrap_neighbors = .true.
-    logical, parameter :: convection = .true.
-    logical, parameter :: wind = .true.
-    logical, parameter :: fake_wind_correction = .false.
-    logical, parameter :: use_input_wind = .true.
     logical, parameter :: caf_comm_message = .false.
     logical, parameter :: parcel_create_message = .false.
     logical, parameter :: brunt_vaisala_data = .false.
-    logical, parameter :: replacement = .true.
-    logical, parameter :: replacement_message = .false.
-    logical, parameter :: init_theta = .false.
-    logical, parameter :: init_velocity = .true.
     logical, parameter :: count_p_comm = .false.
+    logical, parameter :: wrap_neighbors = .true.
     integer            :: parcels_communicated[*]
     integer            :: parcels_per_image
     integer            :: image_parcel_count
@@ -28,9 +20,7 @@ submodule(parcel_interface) parcel_implementation
     real               :: input_wind
     logical            :: dry_air_parcels
     integer            :: total_parcels
-    ! integer, parameter :: parcels_per_image=1
     ! integer, parameter :: local_buf_size=4*parcels_per_image
-    ! logical, parameter :: dry_air_parcels=.true.
     ! -----------------------------------------------
 
     integer, parameter   :: default_buf_size=1
@@ -75,6 +65,7 @@ contains
           this%local(i) = create_empty_parcel(this%parcel_id_count, grid)
       end do
 
+      allocate( this%image_np[*])
       allocate( this%buf_north_in(buf_size)[*])
       allocate( this%buf_south_in(buf_size)[*])
       allocate( this%buf_east_in(buf_size)[*])
@@ -671,12 +662,23 @@ contains
   end function trilinear_interpolation
 
   module procedure total_num_parcels
-     ! total_num_parcels = image_parcel_count * num_images()
-     total_num_parcels = -1
-  end procedure
+    integer :: buf_size, i
+    ! allocate(image_np)
+    buf_size = size(this%local)
+    do i=1,buf_size
+        if (this%local(i)%exists .eqv. .true.) &
+            this%image_np = this%image_np + 1
+    end do
 
-  module procedure get_image_parcel_count
-    get_image_parcel_count = image_parcel_count
+    if (this_image() .eq. 1) then
+        total_num_parcels = this%image_np
+        do i=2,num_images()
+            total_num_parcels = total_num_parcels + this%image_np[i]
+        end do
+    else
+        total_num_parcels = -1
+    end if
+    sync all
   end procedure
 
   module procedure num_parcels_communicated
@@ -689,25 +691,16 @@ contains
     end if
   end procedure
 
-  module procedure are_parcels_dry
-    are_parcels_dry = dry_air_parcels
-  end procedure
 
-  module procedure get_wind_speed
-    if (use_input_wind .eqv. .true.) then
-      get_wind_speed = input_wind
-    end if
-  end procedure
-
-  module procedure current_num_parcels
+  ! return current images number of parcels
+  module procedure image_num_parcels
     integer :: buf_size, i
-    buf_size = size(convection_obj%local)
-    current_num_parcels = 0
+    buf_size = size(this%local)
     do i=1,buf_size
-       if (convection_obj%local(i)%exists .eqv. .true.) &
-            current_num_parcels = current_num_parcels + 1
+       if (this%local(i)%exists .eqv. .true.) &
+            image_num_parcels = image_num_parcels + 1
     end do
-  end procedure
+  end procedure image_num_parcels
 
 
   module procedure check_buf_size
@@ -718,24 +711,22 @@ contains
   end procedure check_buf_size
 
 
+  ! read in parcels from file; TODO: test
   module procedure initialize_from_file
     integer :: total_parcels
-    logical :: parcel_is_dry
-    real    :: wind_speed
-    namelist/parcel_parameters/ total_parcels, parcel_is_dry, wind_speed
+    namelist/parcel_parameters/ total_parcels
 
     character(len=*), parameter :: file = 'parcel-parameters.txt'
     integer :: unit, rc
     logical :: exists
 
-
     if (this_image() .eq. 1) &
-         print *, "Initializing convection parcels from file"
+        print *, "Initializing convection parcels from file"
     inquire(file=file, exist=exists)
 
     if (exists .neqv. .true.) then
        if (this_image() .eq. 1) &
-            print*, trim(file), " does not exist, please create file"
+           print*, trim(file), " does not exist, please create file"
        call exit
     end if
 
@@ -746,11 +737,10 @@ contains
 
     image_parcel_count = nint(total_parcels / real(num_images()))
     local_buf_size = image_parcel_count * 4
-    dry_air_parcels = parcel_is_dry
-    input_wind = wind_speed
   end procedure initialize_from_file
 
 
+  ! Check if parcel is out of the image's boundary
   module procedure parcel_bounds_check
   if (parcel%x .lt. grid%its-1 .or. parcel%z .lt. grid%kts-1 .or. &
       parcel%y .lt. grid%jts-1 .or. parcel%x .gt. grid%ite+1 .or. &
@@ -764,6 +754,7 @@ contains
   end procedure parcel_bounds_check
 
 
+  ! Write Brunt-Vaisala Frequency data to file
   module procedure write_bv_data
   integer :: image, me, i
   logical :: exist
@@ -785,6 +776,5 @@ contains
       end if
       sync all
   end do
-  end procedure
-
-end submodule
+  end procedure write_bv_data
+end submodule ! parcel_implementation

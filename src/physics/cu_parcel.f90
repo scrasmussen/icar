@@ -4,6 +4,7 @@ module module_cu_parcel
   use parcel_type_interface,  only : parcel_t
   use exchangeable_interface, only : exchangeable_t
   use grid_interface,         only : grid_t
+  use iso_fortran_env,        only : output_unit
   implicit none
   public :: cu_parcel, cu_parcel_physics, cu_parcels_init
   private
@@ -11,14 +12,11 @@ module module_cu_parcel
       module procedure cu_parcel_init, cu_parcel_physics
   end interface cu_parcel
 
-  ! -- TODO: remove these --
   logical, parameter :: debug = .true.
-  logical, parameter :: init_theta = .false.
-  logical, parameter :: init_velocity = .true.
-  integer            :: local_buf_size
   logical, parameter :: brunt_vaisala_data = .false.
   logical, parameter :: replacement = .true. ! parcel replacement
-  logical, parameter :: replacement_message = .false.
+  logical, parameter :: replacement_message = .true.
+  integer            :: local_buf_size
 
 contains
 
@@ -48,11 +46,8 @@ contains
       integer :: p_i
 
       me = this_image()
-      print *, me, ": CU_PARCELS_INIT"
-      ! print *, "get_parcel_image",parcels%get_image_parcel_count()
-      ! call backtrace()
 
-      do p_i=1,parcels%get_image_parcel_count()
+      do p_i=1,parcels%image_num_parcels()
           if (parcels%local(p_i)%exists .eqv. .TRUE.) then
               call init_parcel_physics(parcels%local(p_i), pressure, &
                   potential_temp, u_in, v_in, w_in, &
@@ -107,7 +102,7 @@ contains
     integer :: x0, z0, y0, x1, z1, y1
     real :: x, z, y, exner_val
 
-    print *, "AIR_PARCEL_PHYSIC INIT for PARCEL", parcel%parcel_id
+    print *, "=== AIR_PARCEL_PHYSIC INIT for PARCEL", parcel%parcel_id
     x = parcel%x;
     z = parcel%z;
     y = parcel%y;
@@ -140,37 +135,46 @@ contains
     exner_val = exner_function_local(parcel%pressure)
 
     ! call random_number(rand)
-    if (init_theta .eqv. .true.) then
-        parcel%potential_temp = parcel%potential_temp * (1 + 1.0 / 100) ! random 0-1% change
-        ! else
-        !     theta_val = theta_val ! * (1 + 0.01) ! increase by 1%
-    end if
-    ! TODO figure out the init of velocity
-    if (init_velocity .eqv. .true.) then
-        parcel%velocity = 5
-    else
-        parcel%velocity = 0
-    end if
+    ! if (init_theta .eqv. .true.) then
+    !     parcel%potential_temp = parcel%potential_temp * (1 + 1.0 / 100) ! random 0-1% change
+    !     ! else
+    !     !     theta_val = theta_val ! * (1 + 0.01) ! increase by 1%
+    ! end if
+
+    associate (A => w_in%data_3d)
+        parcel%velocity = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
+            A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+            A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+        parcel%w = parcel%velocity
+    end associate
+
+    ! Wind
+    associate (A => u_in%data_3d)
+        parcel%u = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
+            A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+            A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+    end associate
+    associate (A => v_in%data_3d)
+        parcel%v = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
+            A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+            A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+    end associate
 
     parcel%temperature = exner_val * parcel%potential_temp
-
 
     ! parcel%relative_humidity = 0
     parcel%relative_humidity = &
         sat_mr_local(parcel%temperature, parcel%pressure) *  1.0 !0.99
 
-    ! TODO: make trilinear
-    parcel%u = u_in%data_3d(x0, z0, y0)
-    parcel%v = v_in%data_3d(x0, z0, y0)
-    parcel%w = w_in%data_3d(x0, z0, y0)
-    print *, "after ini parcel =", parcel
+    ! print *, "after ini parcel ="
+    ! call parcel%print_parcel()
   end subroutine init_parcel_physics
 
 
   subroutine cu_parcel_physics(this, grid, & !nx_global, ny_global, &
       z_interface, z_m, temperature, potential_temp, &
       pressure, u_in, v_in, w_in, &
-      dt, dz, timestep)
+      dt, dz, dx_val, timestep)
     implicit none
     class(exchangeable_parcel), intent(inout) :: this
     type(grid_t), intent(in) :: grid
@@ -180,7 +184,8 @@ contains
     type(variable_t), intent(in) :: z_interface
     type(variable_t), intent(in) :: z_m
     class(exchangeable_t), intent(in), optional :: u_in, v_in, w_in
-    type(variable_t), intent(in)    :: dz
+    type(variable_t), intent(in) :: dz
+    real, intent(in)    :: dx_val
     real, intent(in)    :: dt
     integer, intent(in), optional :: timestep
     ! local variables
@@ -207,9 +212,14 @@ contains
     parcel_id = 0
 
     do i=1,ubound(this%local,1)
-    associate (parcel=>this%local(i))
-    if (parcel%exists .eqv. .true.) &
+        associate (parcel=>this%local(i))
+    ! print *, "___________________ i =", i, "_________________________"
+    if (parcel%exists .eqv. .true.) then
         call this%parcel_bounds_check(parcel, grid)
+    else
+        cycle
+    end if
+
 
     if (debug .eqv. .true.) &
         call parcel%print_parcel()
@@ -264,6 +274,7 @@ contains
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
     end associate
+
     delta_z = z_displacement / dz_val
     if (z_displacement /= z_displacement) then
         print *, me, ":: ---------NAN ERROR---------", &
@@ -285,21 +296,21 @@ contains
     ! Orographic lift
     ! Find dz change from change in environment
     !-----------------------------------------------------------------
-    associate (A => dz%data_3d)
-        dz_val = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
-            A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
-            A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
-    end associate
-    wind_correction = (1.0 / dz_val)
 
     ! print *, "wind", wind_correction
 
     ! u: zonal velocity, wind towards the east
     ! v: meridional velocity, wind towards north
+    print *, "xzy", parcel%x, parcel%z, parcel%y
+    wind_correction = (1.0 / dz_val)
+    parcel%z = parcel%z + (parcel%w * wind_correction)
+    wind_correction = (1.0 / dx_val)
     parcel%x = parcel%x + (parcel%u * wind_correction)
     parcel%y = parcel%y + (parcel%v * wind_correction)
-    parcel%z = parcel%z + (parcel%w * wind_correction)
 
+    ! print *, "_____________grid nx nz ny =",  grid%nx ,grid%nz ,grid%ny
+    ! print *, "xzy", parcel%x, parcel%z, parcel%y
+    ! stop "HOFFF"
 
     ! TODO ::  data_3d check
     x = parcel%x; z = parcel%z; y = parcel%y
@@ -322,44 +333,20 @@ contains
     parcel%z_meters = z_1
     print *, "parcel id =", parcel%parcel_id, "z =", parcel%z
 
-    if (parcel%z .lt. grid%kts) then
-        ! ---- hits the ground and stops  ----
-        ! z_displacement = z_displacement + dz * (1-parcel%z)
-        ! parcel%z = 1
-        ! parcel%z_meters = z_interface_val + dz/2
-        ! parcel%velocity = 0
-
+    if ((parcel%z .lt. grid%kts) .or. (parcel%z .gt. grid%kte)) then
         ! ---- replacement code ----
-        parcel%exists = .false.
-        ! print *, "-replacing??!!-", parcel%parcel_id
-        if (replacement .eqv. .true.) then
-            parcel = create_empty_parcel(parcel%parcel_id, grid)
-            call cu_parcel_init(parcel, grid, &
-                z_interface, z_m, potential_temp, pressure, &
-                u_in, v_in, w_in, dz)
-            if (replacement_message .eqv. .true.) then
+        parcel = create_empty_parcel(parcel%parcel_id, grid)
+        call cu_parcel_init(parcel, grid, &
+            z_interface, z_m, potential_temp, pressure, &
+            u_in, v_in, w_in, dz)
+        if (replacement_message .eqv. .true.) then
+            if (parcel%z .lt. grid%kts) then
                 print *, me,":",parcel%parcel_id, "hit the ground"
-            end if
-        end if
-
-    else if (parcel%z .gt. grid%kte) then
-        parcel%exists = .false.
-        if (replacement .eqv. .true.) then
-            ! parcel = create_parcel(parcel%parcel_id, &
-            !     z_m, potential_temp, z_interface, pressure, u_in, v_in, w_in,&
-            !     parcel%moved)
-            ! INSTEAD IT IS NOW
-            parcel = create_empty_parcel(parcel%parcel_id, grid)
-
-            call cu_parcel_init( &
-                parcel, grid, z_interface, z_m, &
-                potential_temp, pressure, u_in, v_in, &
-                w_in, dz)
-
-            if (replacement_message .eqv. .true.) then
+            else
                 print *, me,":",parcel%parcel_id, "went off the top"
             end if
         end if
+        cycle
     end if
 
     if (brunt_vaisala_data .eqv. .true.) then
@@ -578,8 +565,10 @@ contains
     ! parcel%relative_humidity = RH
 
     end block
-
     call this%move_if_needed(parcel, grid)
+    ! print *, "POST MOVE IF NEEDED"
+    ! call parcel%print_parcel()
+    ! print *, "END OF PARCELS PHYSICS"
     end associate
     end do
 
@@ -588,6 +577,9 @@ contains
     if (debug .eqv. .true.) &
         print *, "============= process done ==============="
     print *, "- AIR_PARCEL PHYSICS :: ENDING -"
+    print *, ""
+    print *, ""
+    print *, ""
     end subroutine cu_parcel_physics
 
 
@@ -703,5 +695,4 @@ contains
     T_original = temperature
     temperature = exner_function_local(pressure) * potential_temp
     end subroutine dry_lapse_rate
-
 end module module_cu_parcel
