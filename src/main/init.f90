@@ -69,7 +69,7 @@ contains
         call options%init()
 
         if (this_image()==1) write(*,*) "Initializing Domain"
-        call domain%init(options)
+        call domain%init(options)  ! PARCEL POSITION INITIALIZED
 
         if (this_image()==1) write(*,*) "Initializing boundary condition data structure"
         call boundary%init(options)
@@ -123,7 +123,6 @@ contains
         ! call setup_bias_correction(options,domain)
         if (this_image()==1) write(*,'(/ A)') "Finished basic initialization"
         if (this_image()==1) write(*,'(A /)') "---------------------------------------"
-
     end subroutine init_model
 
     subroutine init_physics(options, domain)
@@ -173,11 +172,11 @@ contains
         type(domain_t),  intent(inout) :: domain
         type(options_t), intent(in) :: options
 
-        call domain%parcels%init_position(options, domain%grid)
+        ! call domain%parcels%init_position(options, domain%grid) ! not use right now
         call cu_parcels_init(domain%parcels, domain%grid, &
             domain%z_interface, domain%z, domain%potential_temperature, &
             domain%pressure, domain%u, domain%v, domain%w, &
-            domain%dz_interface)
+            domain%dz_interface, domain%water_vapor, domain%cloud_water_mass)
     end subroutine parcel_init
 ! ------------------------------------------------------------------------------------------
 !-==== Model Domain Section ====
