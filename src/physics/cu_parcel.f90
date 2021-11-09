@@ -12,10 +12,10 @@ module module_cu_parcel
       module procedure cu_parcel_init, cu_parcel_physics
   end interface cu_parcel
 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
   logical, parameter :: brunt_vaisala_data = .false.
   logical, parameter :: replacement = .true. ! parcel replacement
-  logical, parameter :: replacement_message = .true.
+  logical, parameter :: replacement_message = .false.
   integer            :: local_buf_size
 
 contains
@@ -24,6 +24,7 @@ contains
   subroutine cu_parcels_init(parcels, grid, &
       z_interface, z_m, potential_temp, pressure, &
       u_in, v_in, w_in, dz_val, &
+      water_vapor, cloud_water_mass, &
       input_buf_size, halo_width)
       class(exchangeable_parcel), intent(inout) :: parcels
       class(exchangeable_t), intent(in)    :: potential_temp
@@ -33,6 +34,7 @@ contains
       type(variable_t), intent(in)  :: pressure
       type(variable_t), intent(in)  :: z_interface
       type(variable_t), intent(in)  :: dz_val
+      type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
       integer, intent(in), optional :: input_buf_size
       integer, intent(in), optional :: halo_width
 
@@ -47,12 +49,15 @@ contains
 
       me = this_image()
 
-      do p_i=1,parcels%image_num_parcels()
+      do p_i=1,parcels%image_parcel_count
+      ! do p_i=1,parcels%image_num_parcels() ! FUND NOT WORKING
+          print *, "===========i  =", p_i
           if (parcels%local(p_i)%exists .eqv. .TRUE.) then
               call init_parcel_physics(parcels%local(p_i), pressure, &
                   potential_temp, u_in, v_in, w_in, &
-                  z_m, z_interface)
+                  z_m, z_interface, water_vapor, cloud_water_mass)
           end if
+          ! print *, "PARCEL", parcels%local(p_i)
       end do
   end subroutine cu_parcels_init
 
@@ -60,6 +65,7 @@ contains
   subroutine cu_parcel_init(parcel, grid, &
       z_interface, z_m, potential_temp, pressure, &
       u_in, v_in, w_in, dz_val, &
+      water_vapor, cloud_water_mass, &
       input_buf_size, halo_width)
       class(parcel_t), intent(inout) :: parcel
       class(exchangeable_t), intent(in)    :: potential_temp
@@ -69,6 +75,7 @@ contains
       type(variable_t), intent(in)  :: pressure
       type(variable_t), intent(in)  :: z_interface
       type(variable_t), intent(in)  :: dz_val
+      type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
       integer, intent(in), optional :: input_buf_size
       integer, intent(in), optional :: halo_width
 
@@ -80,17 +87,19 @@ contains
       integer :: x0, x1, z0, z1, y0, y1
       logical :: calc
       integer :: p_i
-      print *, me, ": CU_PARCEL_INIT"
+      if (debug .eqv. .true.) &
+          print *, me, ": CU_PARCEL_INIT"
       me = this_image()
       call init_parcel_physics(parcel, pressure, &
           potential_temp, u_in, v_in, w_in, &
-          z_m, z_interface)
+          z_m, z_interface, water_vapor, cloud_water_mass)
   end subroutine cu_parcel_init
 
 
   ! Initialize a parcel's physics
   subroutine init_parcel_physics(parcel, pressure, potential_temp, u_in, &
       v_in, w_in, z_m, z_interface, &
+      water_vapor, cloud_water_mass, &
       times_moved)
     type(parcel_t), intent(inout) :: parcel
     type(variable_t), intent(in) :: pressure
@@ -98,11 +107,13 @@ contains
     class(exchangeable_t), intent(in) :: u_in, v_in, w_in
     type(variable_t), intent(in) :: z_m
     type(variable_t), intent(in) :: z_interface
+    type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
     integer, intent(in), optional :: times_moved
     integer :: x0, z0, y0, x1, z1, y1
     real :: x, z, y, exner_val
 
-    print *, "=== AIR_PARCEL_PHYSIC INIT for PARCEL", parcel%parcel_id
+    if (debug .eqv. .true.) &
+        print *, "=== AIR_PARCEL_PHYSIC INIT for PARCEL", parcel%parcel_id
     x = parcel%x;
     z = parcel%z;
     y = parcel%y;
@@ -166,6 +177,17 @@ contains
     parcel%relative_humidity = &
         sat_mr_local(parcel%temperature, parcel%pressure) *  1.0 !0.99
 
+    associate (A => water_vapor%data_3d)
+        parcel%water_vapor = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
+            A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+            A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+    end associate
+    associate (A => cloud_water_mass%data_3d)
+        parcel%cloud_water = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
+            A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+            A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+    end associate
+
     ! print *, "after ini parcel ="
     ! call parcel%print_parcel()
   end subroutine init_parcel_physics
@@ -174,7 +196,7 @@ contains
   subroutine cu_parcel_physics(this, grid, & !nx_global, ny_global, &
       z_interface, z_m, temperature, potential_temp, &
       pressure, u_in, v_in, w_in, &
-      dt, dz, dx_val, timestep)
+      dt, dz, dx_val, water_vapor, cloud_water_mass, timestep)
     implicit none
     class(exchangeable_parcel), intent(inout) :: this
     type(grid_t), intent(in) :: grid
@@ -184,6 +206,7 @@ contains
     type(variable_t), intent(in) :: z_interface
     type(variable_t), intent(in) :: z_m
     class(exchangeable_t), intent(in), optional :: u_in, v_in, w_in
+    type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
     type(variable_t), intent(in) :: dz
     real, intent(in)    :: dx_val
     real, intent(in)    :: dt
@@ -205,6 +228,7 @@ contains
     logical :: calc, calc_x, calc_y, exist
     real :: x, z, y, foo, dz_val
     if (debug .eqv. .true.) print*, "start parcel processing"
+
 
     me = this_image()
     bv_i = 1
@@ -299,9 +323,10 @@ contains
 
     ! print *, "wind", wind_correction
 
+
     ! u: zonal velocity, wind towards the east
     ! v: meridional velocity, wind towards north
-    print *, "xzy", parcel%x, parcel%z, parcel%y
+    ! print *, "xzy", parcel%x, parcel%z, parcel%y
     wind_correction = (1.0 / dz_val)
     parcel%z = parcel%z + (parcel%w * wind_correction)
     wind_correction = (1.0 / dx_val)
@@ -331,14 +356,15 @@ contains
     z_0 = parcel%z_meters
     z_1 = parcel%z_meters + z_displacement
     parcel%z_meters = z_1
-    print *, "parcel id =", parcel%parcel_id, "z =", parcel%z
+    if (debug .eqv. .true.) &
+        print *, "parcel id =", parcel%parcel_id, "z =", parcel%z
 
     if ((parcel%z .lt. grid%kts) .or. (parcel%z .gt. grid%kte)) then
         ! ---- replacement code ----
         parcel = create_empty_parcel(parcel%parcel_id, grid)
         call cu_parcel_init(parcel, grid, &
             z_interface, z_m, potential_temp, pressure, &
-            u_in, v_in, w_in, dz)
+            u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
         if (replacement_message .eqv. .true.) then
             if (parcel%z .lt. grid%kts) then
                 print *, me,":",parcel%parcel_id, "hit the ground"
@@ -431,8 +457,6 @@ contains
             .and. vapor_needed .gt. 0.0000001) then
             if (debug .eqv. .true.) &
                 print*, "==== cloud_water .gt. 0, rh .lt. 1, wet ===="
-
-
 
             only_dry = .false.
             if (vapor_needed > parcel%cloud_water) then
@@ -576,10 +600,12 @@ contains
         call this%write_bv_data(bv, bv_i, parcel_id, timestep, local_buf_size)
     if (debug .eqv. .true.) &
         print *, "============= process done ==============="
+    if (debug .eqv. .true.) then
     print *, "- AIR_PARCEL PHYSICS :: ENDING -"
     print *, ""
     print *, ""
     print *, ""
+    end if
     end subroutine cu_parcel_physics
 
 
