@@ -29,8 +29,8 @@ contains
     real(real64), parameter :: real64_datum=0.3_real64
 
     write(real64_string,*) real64_datum
-    ! adjustl(real64_string)      == str(real64_datum)
-    result_ = assert_that(real64_datum == get_double(real64_string))
+    result_ = assert_that(real64_datum == get_double(real64_string)) .and.  &
+              assert_that(adjustl(real64_string) == str(real64_datum))
   end function
 
   function check_real32_conversion() result(result_)
@@ -39,18 +39,18 @@ contains
     real(real32), parameter :: real32_datum=0.3_real32
 
     write(real32_string,*) real32_datum
-    ! adjustl(real32_string)      == str(real32_datum)  
-    result_ = assert_that(real32_datum == get_real(real32_string))
+    result_ = assert_that(real32_datum == get_real(real32_string)) .and. &
+              assert_that(adjustl(real32_string) == str(real32_datum))
   end function
 
   function check_integer_conversion() result(result_)
     type(result_t) result_
     character(len=max_num_len) integer_string
-    integer,      parameter :: integer_datum=1234567
+    integer, parameter :: integer_datum=1234567
 
     write(integer_string,*) integer_datum
-    ! adjustl(integer_string)     == str(integer_datum) 
-    result_ = assert_that(integer_datum == get_integer(integer_string))
+    result_ = assert_that(integer_datum == get_integer(integer_string)) .and. &
+              assert_that(adjustl(integer_string) == str(integer_datum))
   end function
 
 end module string_test
