@@ -247,7 +247,7 @@ contains
                 l =q(:,k,j)
                 call flux1(q1(1:n-1),q1(2:n),U2,f)
 
-                include "adv_mpdata_FCT_core.f90"
+                include "adv_mpdata_FCT_core.f90.inc"
                 u(:,k,j)=U2
             end do
 
@@ -264,7 +264,7 @@ contains
                 l =q(k,:,j)
                 call flux1(q1(1:n-1),q1(2:n),U2,f)
                 ! NOTE: need to check this a little more
-                include "adv_mpdata_FCT_core.f90"
+                include "adv_mpdata_FCT_core.f90.inc"
                 w(k,1:n-1,j)=U2
                 w(k,n,j)=0
             end do
@@ -290,7 +290,7 @@ contains
                 l =q(j,k,:)
                 call flux1(q1(1:n-1),q1(2:n),U2,f)
 
-                include "adv_mpdata_FCT_core.f90"
+                include "adv_mpdata_FCT_core.f90.inc"
                 v(j,k,:)=U2
             end do
         end do
