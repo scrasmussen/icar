@@ -7,6 +7,10 @@ copyright = "2021 National Center for Atmospheric Research"
 
 [dependencies]
 netcdf-interfaces = {git = "https://github.com/LKedward/netcdf-interfaces.git"}
+assert = {git = "https://github.com/sourceryinstitute/assert.git"}
+
+[dev-dependencies]
+vegetables = {git = "https://gitlab.com/everythingfunctional/vegetables.git"}
 
 [build]
 link = "fftw3"

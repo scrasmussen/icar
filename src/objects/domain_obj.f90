@@ -8,7 +8,7 @@
 !!
 !!------------------------------------------------------------
 submodule(domain_interface) domain_implementation
-    use assertions_mod,       only : assert, assertions
+    use assert_m,             only : assert
     use mod_atm_utilities,    only : exner_function, update_pressure
     use icar_constants,       only : kVARS, kLC_LAND
     use string,               only : str
