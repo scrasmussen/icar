@@ -40,7 +40,7 @@ contains
 
     write(real32_string,*) real32_datum
     ! adjustl(real32_string)      == str(real32_datum)  
-    result_ = assert_that(real32_datum == get_double(real32_string))
+    result_ = assert_that(real32_datum == get_real(real32_string))
   end function
 
   function check_integer_conversion() result(result_)
