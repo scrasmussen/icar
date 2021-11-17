@@ -3,7 +3,7 @@ module string_test
   use string, only : get_double, get_real, get_integer, str
   use iso_fortran_env, only : real32, real64, int32
   use vegetables, only: &
-      result_t, test_item_t, assert_equals, describe, it, assert_that, fail, succeed
+      result_t, test_item_t, describe, it, assert_that, fail, succeed
   implicit none
   private
   public :: test_string
@@ -50,7 +50,7 @@ contains
 
     write(integer_string,*) integer_datum
     ! adjustl(integer_string)     == str(integer_datum) 
-    result_ = assert_that(integer_datum == get_double(integer_string))
+    result_ = assert_that(integer_datum == get_integer(integer_string))
   end function
 
 end module string_test
