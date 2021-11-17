@@ -189,7 +189,7 @@ contains
             
         ! endif
 
-        ! ! call assert(size(var_list) == size(dim_list), "list of variable dimensions must match list of variables")
+        ! call assert(size(var_list) == size(dim_list), "list of variable dimensions must match list of variables")
 
         do i=1, size(var_list)
 

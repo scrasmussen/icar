@@ -1,5 +1,6 @@
 submodule(grid_interface) grid_implementation
-    use assertions_mod, only : assert, assertions
+    use assert_m, only : assert
+    use intrinsic_array_m, only : intrinsic_array_t
 
     implicit none
 
@@ -97,8 +98,7 @@ contains
         x = (nx/float(xs))
         y = (ny/float(ys))
 
-        if (assertions) call assert((xs*ys) == nimages, "Number of tiles does not sum to number of images")
-        ! if (image==1) print*, "ximgs=",xs, "yimgs=",ys
+        call assert((xs*ys) == nimages, "domain_decomposition: number of tiles == number of images", intrinsic_array_t([xs*ys, nimages]))
 
     end subroutine domain_decomposition
 
