@@ -7,12 +7,15 @@ contains
     subroutine run()
         use string_test, only: &
                 string_string => test_string
+        use variable_dict_test, only: &
+                variable_dict_variable_dict => test_variable_dict
         use vegetables, only: test_item_t, test_that, run_tests
 
         type(test_item_t) :: tests
-        type(test_item_t) :: individual_tests(1)
+        type(test_item_t) :: individual_tests(2)
 
         individual_tests(1) = string_string()
+        individual_tests(2) = variable_dict_variable_dict()
         tests = test_that(individual_tests)
 
         call run_tests(tests)
