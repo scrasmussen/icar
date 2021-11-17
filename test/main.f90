@@ -5,6 +5,8 @@ program main
     call run()
 contains
     subroutine run()
+        use array_utilities_test, only: &
+                array_utilities_array_utilities => test_array_utilities
         use string_test, only: &
                 string_string => test_string
         use variable_dict_test, only: &
@@ -12,10 +14,11 @@ contains
         use vegetables, only: test_item_t, test_that, run_tests
 
         type(test_item_t) :: tests
-        type(test_item_t) :: individual_tests(2)
+        type(test_item_t) :: individual_tests(3)
 
-        individual_tests(1) = string_string()
-        individual_tests(2) = variable_dict_variable_dict()
+        individual_tests(1) = array_utilities_array_utilities()
+        individual_tests(2) = string_string()
+        individual_tests(3) = variable_dict_variable_dict()
         tests = test_that(individual_tests)
 
         call run_tests(tests)
