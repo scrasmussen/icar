@@ -37,11 +37,18 @@ while [ "$1" != "" ]; do
     shift
 done
 
-brew install netcdf fftw gcc pkg-config opencoarrays coreutils # coreutils supports `realpath` below
+set -u # error on use of undefined variable
+
+if ! command -v brew ; then
+  # if brew not found, install homebrew
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+GCC_VER="11"
+brew install cmake netcdf fftw gcc@$GCC_VER pkg-config opencoarrays coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
 
-set -u # error on use of undefined variable
 
 if command -v curl > /dev/null 2>&1; then
     FETCH="curl -L"
@@ -54,23 +61,21 @@ fi
 
 mkdir -p build/dependencies
 git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
-cd build/dependencies/netcdf-fortran
-  export FC=gfortran CC=gcc CXX=g++
+mkdir -p build/dependencies/netcdf-fortran/build
+cd build/dependencies/netcdf-fortran/build
+  export FC=gfortran-${GCC_VER} CC=gcc-${GCC_VER} CXX=g++-${GCC_VER}
   NETCDF_PREFIX="`brew --prefix netcdf`"
-  cmake -B build \
+  cmake .. \
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
     -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
-cd -
-
-cd build/dependencies/netcdf-fortran/build
-  make install --prefix "$PREFIX"
+  make install
 cd -
 
 GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
 FFTW_INCLUDE_PATH="`brew --prefix fftw`/include"
 NETCDF_LIB_PATH="`brew --prefix netcdf`/lib"
 FFTW_LIB_PATH="`brew --prefix fftw`/lib"
-PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
+export PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
 
 FPM_FLAG="-cpp -DUSE_ASSERTIONS=.true."
 FPM_FLAG=" $FPM_FLAG -I$FFTW_INCLUDE_PATH"
@@ -84,7 +89,7 @@ cd "$PKG_CONFIG_PATH"
   echo "ICAR_FPM_CXX=\"$CXX\""           >  icar.pc
   echo "ICAR_FPM_CC=\"$FPM_CC\""         >> icar.pc
   echo "ICAR_FPM_FC=\"$FPM_FC\""         >> icar.pc
-  echo "ICAR_FPM_FFLAGS=\"$FPM_FFLAGS\"" >> icar.pc
+  echo "ICAR_FPM_FLAG=\"$FPM_FLAG\""   >> icar.pc
   echo "Name: icar"                      >> icar.pc
   echo "Description: Intermediate Complexity Atmospheric Research (ICAR)" >> icar.pc
   echo "URL: https://github.com/ncar/icar"                                >> icar.pc
@@ -98,7 +103,7 @@ cd build
   echo "--profile debug \\"                                           >> run-fpm.sh
   echo "--c-compiler \"`pkg-config icar --variable=ICAR_FPM_CC`\" \\" >> run-fpm.sh
   echo "--compiler \"`pkg-config icar --variable=ICAR_FPM_FC`\" \\"   >> run-fpm.sh
-  echo "--flag \"`pkg-config icar --variable=ICAR_FPM_FFLAGS`\""      >> run-fpm.sh
+  echo "--flag \"`pkg-config icar --variable=ICAR_FPM_FLAG`\""        >> run-fpm.sh
   chmod u+x run-fpm.sh
 cd -
 
