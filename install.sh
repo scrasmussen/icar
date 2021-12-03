@@ -4,43 +4,43 @@ set -e # exit on error
 
 usage()
 {
-    echo "ICAR Installation Script"
-    echo ""
-    echo "USAGE:"
-    echo "./install.sh [--help | [--prefix=PREFIX]"
-    echo ""
-    echo " --help             Display this help text"
-    echo " --prefix=PREFIX    Install binary in 'PREFIX/bin'"
-    echo "                    Default prefix='\$HOME/.local/bin'"
-    echo ""
+  echo "ICAR Installation Script"
+  echo ""
+  echo "USAGE:"
+  echo "./install.sh [--help | [--prefix=PREFIX]"
+  echo ""
+  echo " --help             Display this help text"
+  echo " --prefix=PREFIX    Install binary in 'PREFIX/bin'"
+  echo "                    Default prefix='\$HOME/.local/bin'"
+  echo ""
 }
 
 PREFIX="$HOME/.local"
 
 while [ "$1" != "" ]; do
-    PARAM=$(echo "$1" | awk -F= '{print $1}')
-    VALUE=$(echo "$1" | awk -F= '{print $2}')
-    case $PARAM in
-        -h | --help)
-            usage
-            exit
-            ;;
-        --prefix)
-            PREFIX=$VALUE
-            ;;
-        *)
-            echo "ERROR: unknown parameter \"$PARAM\""
-            usage
-            exit 1
-            ;;
-    esac
-    shift
+  PARAM=$(echo "$1" | awk -F= '{print $1}')
+  VALUE=$(echo "$1" | awk -F= '{print $2}')
+  case $PARAM in
+    -h | --help)
+      usage
+      exit
+      ;;
+    --prefix)
+      PREFIX=$VALUE
+      ;;
+    *)
+      echo "ERROR: unknown parameter \"$PARAM\""
+      usage
+      exit 1
+      ;;
+  esac
+  shift
 done
 
 set -u # error on use of undefined variable
 
-if ! command -v brew ; then
-  # if brew not found, install homebrew
+# if brew not found, install homebrew
+if ! command -v brew > /dev/null ; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
@@ -48,7 +48,6 @@ GCC_VER="11"
 brew install cmake netcdf fftw gcc@$GCC_VER pkg-config opencoarrays coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
-
 
 if command -v curl > /dev/null 2>&1; then
     FETCH="curl -L"
@@ -86,11 +85,11 @@ FPM_FC="caf"
 FPM_CC="$CC"
 
 cd "$PKG_CONFIG_PATH"
-  echo "ICAR_FPM_CXX=\"$CXX\""           >  icar.pc
-  echo "ICAR_FPM_CC=\"$FPM_CC\""         >> icar.pc
-  echo "ICAR_FPM_FC=\"$FPM_FC\""         >> icar.pc
-  echo "ICAR_FPM_FLAG=\"$FPM_FLAG\""   >> icar.pc
-  echo "Name: icar"                      >> icar.pc
+  echo "ICAR_FPM_CXX=\"$CXX\""       >  icar.pc
+  echo "ICAR_FPM_CC=\"$FPM_CC\""     >> icar.pc
+  echo "ICAR_FPM_FC=\"$FPM_FC\""     >> icar.pc
+  echo "ICAR_FPM_FLAG=\"$FPM_FLAG\"" >> icar.pc
+  echo "Name: icar"                  >> icar.pc
   echo "Description: Intermediate Complexity Atmospheric Research (ICAR)" >> icar.pc
   echo "URL: https://github.com/ncar/icar"                                >> icar.pc
   echo "Version: 1.0.0"                                                   >> icar.pc
@@ -110,7 +109,7 @@ cd -
 ./build/run-fpm.sh test
 
 echo ""
-echo "________________ ICAR has been installed! ________________" 
+echo "________________ ICAR has been installed! ____________________" 
 echo ""
 echo "To rebuild or to run tests or examples via the Fortran Package"
 echo "Manager (fpm) with the required compiler/linker flags, pass a"
