@@ -80,7 +80,7 @@ export PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
 FPM_FLAG="-cpp -DUSE_ASSERTIONS=.true."
 FPM_FLAG=" $FPM_FLAG -I$FFTW_INCLUDE_PATH"
 FPM_FLAG=" $FPM_FLAG -fallow-argument-mismatch -ffree-line-length-none"
-FPM_FLAG=" $FPM_FLAG -DVERSION=\\\"$GIT_VERSION\\\""
+FPM_FLAG=" $FPM_FLAG -DVERSION=\\\'$GIT_VERSION\\\'"
 FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
