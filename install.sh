@@ -39,9 +39,19 @@ done
 
 set -u # error on use of undefined variable
 
-# if brew not found, install homebrew
 if ! command -v brew > /dev/null ; then
+  if ! command -v curl > /dev/null ; then
+    echo "Please install curl and then rerun ./install.sh"
+    exit 1
+  fi
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if [ $(uname) = "Linux" ]; then
+    if [ -z "$PATH" ]; then
+      PATH=/home/linuxbrew/.linuxbrew/bin/
+    else
+      PATH=/home/linuxbrew/.linuxbrew/bin/:"$PATH"
+    fi
+  fi
 fi
 
 GCC_VER="11"
@@ -49,14 +59,6 @@ brew install cmake netcdf fftw gcc@$GCC_VER pkg-config opencoarrays coreutils # 
 
 PREFIX=`realpath $PREFIX`
 
-if command -v curl > /dev/null 2>&1; then
-    FETCH="curl -L"
-elif command -v wget > /dev/null 2>&1; then
-    FETCH="wget -O -"
-else
-    echo "No download mechanism found. Please install curl or wget first."
-    exit 1
-fi
 
 mkdir -p build/dependencies
 git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
