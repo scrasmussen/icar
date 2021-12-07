@@ -16,28 +16,26 @@
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
 !!-----------------------------------------
-program icar
+submodule(icar_m) icar_s
+  use iso_fortran_env,    only : output_unit
+  use options_interface,  only : options_t
+  use boundary_interface, only : boundary_t
+  use output_interface,   only : output_t
+  use time_step,          only : step                               ! Advance the model forward in time
+  use initialization,     only : init_model, init_physics
+  use timer_interface,    only : timer_t
+  use time_object,        only : Time_type
+  use time_delta_object,  only : time_delta_t
+  use wind,               only : update_winds
+  use restart_interface,  only : restart_model
+  use icar_constants,     only : kVARS
+  use land_surface,               only : lsm_init
+  implicit none
 
-    use iso_fortran_env,    only : output_unit
-    use options_interface,  only : options_t
-    use domain_interface,   only : domain_t
-    use boundary_interface, only : boundary_t
-    use output_interface,   only : output_t
-    use time_step,          only : step                               ! Advance the model forward in time
-    use initialization,     only : init_model, init_physics
-    use timer_interface,    only : timer_t
-    use time_object,        only : Time_type
-    use time_delta_object,  only : time_delta_t
-    use wind,               only : update_winds
-    use restart_interface,  only : restart_model
-    use icar_constants,     only : kVARS
+contains
 
-    use land_surface,               only : lsm_init
-
-    implicit none
-
+  module procedure icar
     type(options_t) :: options
-    type(domain_t)  :: domain
     type(boundary_t):: boundary, add_cond
     ! type(output_t)  :: dataset
     ! type(output_t)  :: surface_dataset
@@ -216,7 +214,7 @@ program icar
         write(*,*) "physics : ", trim(physics_timer%as_string())
     endif
 
-contains
+  contains
 
     function step_end(time1, time2) result(min_time)
         implicit none
@@ -232,7 +230,8 @@ contains
 
     end function
 
-end program
+  end  procedure
+end submodule icar_s
 
 ! This is the Doxygen mainpage documentation.  This should be moved to another file at some point.
 
