@@ -1,5 +1,6 @@
 # class generates ICAR namelist file
 class ICARoptions:
+
     def __init__(self,
                  filename = 'icar_options.nml',
                  # model namelist
