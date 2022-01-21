@@ -2,8 +2,16 @@ import sys
 
 # class generates ICAR namelist file
 class ICARoptions:
-    def __init__(self):
-        self.f = open('icar_options.nm', 'w')
+    def __init__(self, parcels, parcel_count=10, output_interval=3600, nz=15):
+        # initialize a few variables
+        if (nz > 50):
+            print('Warning: number of z-layers may not be enough')
+        if (parcels):
+            self.add_parcels(parcel_count)
+        self.output_list['outputinterval'] = output_interval
+        self.parameters['nz'] = nz
+
+        self.f = open('icar_options.nml', 'w')
         self.gen(self.model_version)
         self.gen(self.output_list)
         self.gen(self.physics)
@@ -12,9 +20,8 @@ class ICARoptions:
         self.clean_var_list()
         self.gen(self.var_list)
         self.gen(self.z_info)
+        self.gen(self.parcels)
         self.close()
-        print("generated ICAR options")
-
 
     def gen(self, nml):
         f = self.f
@@ -42,6 +49,13 @@ class ICARoptions:
             self.var_list[name] = '"' + val + '"'
             # print(name, val)
 
+
+    def add_parcels(self, parcel_count):
+        self.output_list['names'] = self.output_list['names'] + ', "parcels"'
+        self.physics['conv'] = 4
+        self.parcels['total_parcels'] = parcel_count
+
+
     # namelist options to write
     model_version = {
         'name': 'model_version',
@@ -53,7 +67,7 @@ class ICARoptions:
         'name': 'output_list',
         'names': '"u","v","ta2m","hus2m", "precipitation", "swe"',
         'outputinterval': 3600,
-        'output_file': '"out_"'
+        'output_file': '"icar_out_"'
     }
 
     physics = {
@@ -73,7 +87,7 @@ class ICARoptions:
 
     z_info = {
         'name': 'z_info',
-        'dz_levels': str([50., 75., 125., 200., 300., 400.] + [500.] * 35)[1:-1]
+        'dz_levels': str([50., 75., 125., 200., 300., 400.] + [500.] * 50)[1:-1]
     }
 
 
@@ -119,4 +133,9 @@ class ICARoptions:
         'time_varying_z': 'False',
         'use_agl_height': 'False',
         'smooth_wind_distance': '72000'
+    }
+
+    parcels = {
+        'name': 'parcel_parameters',
+        'total_parcels': 0
     }
