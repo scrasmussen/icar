@@ -421,6 +421,7 @@ contains
         if (0<opt%vars_to_allocate( kVARS%znu) )                        allocate(this%znu(kms:kme),   source=0.0)
         if (0<opt%vars_to_allocate( kVARS%znw) )                        allocate(this%znw(kms:kme),   source=0.0)
 
+        call this%parcels%init_position(opt, this%grid) ! ARTLESS :: BETTER ORG
     end subroutine
 
     !> -------------------------------

@@ -8,14 +8,13 @@ submodule(parcel_interface) parcel_implementation
 
     ! ----- PARAMETERS TO TUNE CONVECTION MODEL -----
     logical, parameter :: debug = .false.
-    logical, parameter :: caf_comm_message = .false.
+    logical, parameter :: caf_comm_message = .true.
     logical, parameter :: parcel_create_message = .false.
     logical, parameter :: brunt_vaisala_data = .false.
     logical, parameter :: count_p_comm = .false.
     logical, parameter :: wrap_neighbors = .true.
     integer            :: parcels_communicated[*]
     integer            :: parcels_per_image
-    integer            :: image_parcel_count
     integer            :: local_buf_size
     real               :: input_wind
     logical            :: dry_air_parcels
@@ -23,7 +22,6 @@ submodule(parcel_interface) parcel_implementation
     ! integer, parameter :: local_buf_size=4*parcels_per_image
     ! -----------------------------------------------
 
-    integer, parameter   :: default_buf_size=1
     integer, parameter   :: default_halo_size=1
     integer, allocatable :: neighbors(:)
     integer       :: north_con_neighbor, south_con_neighbor, buf_size, halo_size
@@ -32,39 +30,55 @@ submodule(parcel_interface) parcel_implementation
     integer       :: southeast_con_neighbor, southwest_con_neighbor
 
 contains
+    module procedure init_num_parcels
+      ! compute number of parcels per image
+      total_parcels = options%parcel_options%total_parcels
+      this%total_parcel_count = total_parcels
+      this%image_parcel_count = total_parcels / num_images()
+      if (this_image() .le. mod(total_parcels, num_images())) then
+          this%image_parcel_count = this%image_parcel_count + 1
+      end if
+      print *, this_image(), ": IMAGE PARCEL COUNT", this%image_parcel_count
+      ! call backtrace()
+    end procedure
+
     module procedure init_position
       integer :: i, seed(34)
 
       if (options%physics%convection /= 4) then
           return
       end if
-
-      ! compute number of parcels per image
-      total_parcels = options%parcel_options%total_parcels
-      image_parcel_count = total_parcels / num_images()
-      if (this_image() .le. mod(total_parcels, num_images())) then
-          image_parcel_count = image_parcel_count + 1
-      end if
+      call this%init_num_parcels(options)
+      print *, "===================== PARCEL INIT_POSITION ================="
 
       ! allocate boundary regions
-      if (allocated(this%local)) deallocate(this%local)
+      ! if (allocated(this%local)) deallocate(this%local)
+      if (associated(this%local)) then
+          deallocate(this%local)
+          nullify(this%local)
+      end if
       this%north_boundary = (grid%yimg == grid%yimages)
       this%south_boundary = (grid%yimg == 1)
       this%east_boundary  = (grid%ximg == grid%ximages)
       this%west_boundary  = (grid%ximg == 1)
 
-      allocate(this%local(image_parcel_count * 4))
+      ! print *, " NEED TO FIX THIS HACK", this%image_parcel_count
+      ! this%image_parcel_count = options%parcel_options%total_parcels
+      print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
+      allocate(this%local(this%image_parcel_count * 4))
 
       ! setup random number generator for parcel location
       seed = -1
       call random_seed(PUT=seed)
       call random_init(.true.,.true.)
 
-      do i=1,image_parcel_count
+      do i=1,this%image_parcel_count
           call this%create_parcel_id()
+          ! print *, " PARCEL ID COUNT", this%parcel_id_count
           this%local(i) = create_empty_parcel(this%parcel_id_count, grid)
       end do
 
+      buf_size = this%image_parcel_count
       allocate( this%image_np[*])
       allocate( this%buf_north_in(buf_size)[*])
       allocate( this%buf_south_in(buf_size)[*])
@@ -76,10 +90,13 @@ contains
       allocate( this%buf_southwest_in(buf_size)[*])
 
       call this%setup_neighbors(grid)
-      print *, "Total number of convected air parcels:", options%parcel_options%total_parcels
+      print *, "Total number of convected air parcels:", &
+          options%parcel_options%total_parcels, "and", this_image(), "has",&
+          this%image_parcel_count
     end procedure
 
 
+    ! --- Create an empty parcel
     module procedure create_empty_parcel
     real :: random_start(3), x, z, y
 
@@ -102,11 +119,11 @@ contains
 
     ! filler values, the rest are set later
     parcel = parcel_t( &
-        parcel_id, .true., 0, x, &
-        y, z, 0.0, 0.0, &
+        parcel_id, .true., 0, 0.0, &
+        x, y, z, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
-        0.0, 0.0)
+        0.0, 0.0, 0.0)
     end procedure
 
 
@@ -323,7 +340,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%south_i)
+    call this%check_buf_size(this%south_i)
     !dir$ pgas defer_sync
     this%buf_south_in(this%south_i)[north_con_neighbor] = parcel
     parcel%exists = .false.
@@ -340,7 +357,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%north_i)
+    call this%check_buf_size(this%north_i)
     !dir$ pgas defer_sync
     this%buf_north_in(this%north_i)[south_con_neighbor] = parcel
     parcel%exists = .false.
@@ -357,7 +374,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%west_i)
+    call this%check_buf_size(this%west_i)
     !dir$ pgas defer_sync
     this%buf_west_in(this%west_i)[east_con_neighbor] = parcel
     parcel%exists = .false.
@@ -374,7 +391,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%east_i)
+    call this%check_buf_size(this%east_i)
     !dir$ pgas defer_sync
     this%buf_east_in(this%east_i)[west_con_neighbor] = parcel
     parcel%exists = .false.
@@ -391,7 +408,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%southwest_i)
+    call this%check_buf_size(this%southwest_i)
     !dir$ pgas defer_sync
     this%buf_southwest_in(this%southwest_i)[northeast_con_neighbor] = parcel
     parcel%exists = .false.
@@ -408,7 +425,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%southeast_i)
+    call this%check_buf_size(this%southeast_i)
     !dir$ pgas defer_sync
     this%buf_southeast_in(this%southeast_i)[northwest_con_neighbor] = parcel
     parcel%exists = .false.
@@ -425,7 +442,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%northwest_i)
+    call this%check_buf_size(this%northwest_i)
     !dir$ pgas defer_sync
     this%buf_northwest_in(this%northwest_i)[southeast_con_neighbor] = parcel
     parcel%exists = .false.
@@ -442,7 +459,7 @@ contains
       return
     end if
 
-    call check_buf_size(this%northeast_i)
+    call this%check_buf_size(this%northeast_i)
     !dir$ pgas defer_sync
     this%buf_northeast_in(this%northeast_i)[southwest_con_neighbor] = parcel
     parcel%exists = .false.
@@ -662,10 +679,10 @@ contains
   end function trilinear_interpolation
 
   module procedure total_num_parcels
-    integer :: buf_size, i
+    integer :: buf_size_l, i
     ! allocate(image_np)
-    buf_size = size(this%local)
-    do i=1,buf_size
+    buf_size_l = size(this%local)
+    do i=1,buf_size_l
         if (this%local(i)%exists .eqv. .true.) &
             this%image_np = this%image_np + 1
     end do
@@ -694,9 +711,9 @@ contains
 
   ! return current images number of parcels
   module procedure image_num_parcels
-    integer :: buf_size, i
-    buf_size = size(this%local)
-    do i=1,buf_size
+    integer :: buf_size_l, i
+    buf_size_l = size(this%local)
+    do i=1,buf_size_l
        if (this%local(i)%exists .eqv. .true.) &
             image_num_parcels = image_num_parcels + 1
     end do
@@ -704,7 +721,7 @@ contains
 
 
   module procedure check_buf_size
-    if (i .gt. image_parcel_count) then
+    if (i .gt. this%image_parcel_count) then
        print *, this_image(), ": ERROR put buffer overflow"
        call exit
     end if
@@ -735,8 +752,9 @@ contains
     read(unit=unit, nml=parcel_parameters, iostat=rc)
     close(unit)
 
-    image_parcel_count = nint(total_parcels / real(num_images()))
-    local_buf_size = image_parcel_count * 4
+    stop "LOOK HERE AND FIX"
+    ! image_parcel_count = nint(total_parcels / real(num_images()))
+    ! local_buf_size = image_parcel_count * 4
   end procedure initialize_from_file
 
 
@@ -777,4 +795,25 @@ contains
       sync all
   end do
   end procedure write_bv_data
+
+  ! module subroutine set_outputdata(this, metadata)
+  !   implicit none
+  !   class(exchangeable_t), intent(inout)  :: this
+  !   type(variable_t),      intent(in),    :: metadata
+
+  !   if (present(metadata)) then
+  !       this%meta_data = metadata
+  !   endif
+
+  !   this%meta_data%data_3d => this%data_3d
+  !   this%meta_data%three_d = .True.
+
+  !   if (.not.allocated(this%meta_data%dim_len)) allocate(this%meta_data%dim_len(3))
+  !   this%meta_data%dim_len(1) = size(this%data_3d,1)
+  !   this%meta_data%dim_len(2) = size(this%data_3d,2)
+  !   this%meta_data%dim_len(3) = size(this%data_3d,3)
+
+  ! end subroutine
+
+
 end submodule ! parcel_implementation

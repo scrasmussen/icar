@@ -11,7 +11,7 @@ module output_metadata
     !! Generic interface to the netcdf read routines
     !!------------------------------------------------------------
     interface get_metadata
-        module procedure get_metadata_2d, get_metadata_2dd, get_metadata_3d, get_metadata_nod
+        module procedure get_metadata_2d, get_metadata_2dd, get_metadata_3d, get_metadata_nod, get_metadata_parcels
     end interface
 
 
@@ -139,6 +139,35 @@ contains
 
     end function get_metadata_3d
 
+    function get_metadata_parcels(var_idx, input_data, image_parcel_count) result(meta_data)
+        use parcel_type_interface,   only : parcel_t
+        implicit none
+        integer, intent(in)          :: var_idx, image_parcel_count
+        type(parcel_t), pointer, intent(in)  :: input_data(:)
+        type(variable_t) :: meta_data       ! function result
+        integer          :: local_shape(3)  ! store the shape of the input data array
+
+        if (var_idx>kMAX_STORAGE_VARS) then
+            stop "Invalid variable metadata requested"
+        endif
+
+        ! initialize the module level constant data structure
+        if (.not.allocated(var_meta)) call init_var_meta()
+
+        meta_data = var_meta(var_idx)
+
+        if (associated(input_data)) then
+            meta_data%data_parcels  => input_data
+            meta_data%parcels       =  .true.
+            ! if this is changed, changed output_obj.f90 as well and up
+            local_shape(1) = 10 ! for now: id, x, y, z_m, temp, pressure, w, water_vapor, cloud_water, lifetime
+            local_shape(2) = image_parcel_count
+            allocate(meta_data%dim_len, source=local_shape)
+        endif
+    end function get_metadata_parcels
+
+
+
 
     !>------------------------------------------------------------
     !! Get metadata variable name associated with a given index
@@ -194,7 +223,7 @@ contains
         character(len=16) :: three_d_t_lake_soisno_dimensions(4)    = [character(len=16) :: "lon_x","lat_y","nlevsoisno","time"] !grid_lake_soisno
         character(len=16) :: three_d_t_lake_soisno_1_dimensions(4)  = [character(len=16) :: "lon_x","lat_y","nlevsoisno_1","time"]
         character(len=16) :: three_d_t_lake_soi_dimensions(4)       = [character(len=16) :: "lon_x","lat_y","nlevsoi_lake","time"] !grid_lake_soi
-
+        character(len=16) :: three_d_parcel_dimensions(3)       = [character(len=16) :: "parcel_info","num_parcels","time"]
 
         if (allocated(var_meta)) deallocate(var_meta)
 
@@ -2532,6 +2561,18 @@ contains
             var%dimensions  = two_d_v_dimensions
             var%attributes  = [attribute_t("non_standard_name", "longitude_on_v_grid"),             &
                                attribute_t("units",         "degrees_east")]
+        end associate
+
+        !>------------------------------------------------------------
+        !!  Parcels convected air parcels
+        !!------------------------------------------------------------
+        associate(var=>var_meta(kVARS%parcels)) ! ARTLESS
+            var%name        = "parcels"
+            var%dimensions  = three_d_parcel_dimensions
+            var%unlimited_dim=.True.
+            var%attributes  = [attribute_t("standard_name", "parcels"),              &
+                               attribute_t("long_name",     "Semi-Lagrangian Convected Air Parcels"), &
+                               attribute_t("units",         "ID, x, y, z_meters, Temp, Pressure, w, qv, qc, lifetime")]
         end associate
 
         ! loop through entire array setting n_dimensions and n_attrs based on the data that were supplied
