@@ -3,7 +3,6 @@ import os
 import glob
 import time
 # import multiprocessing as mp
-
 import numpy as np
 import xarray as xr
 
@@ -60,22 +59,22 @@ def set_up_dataset(d):
         dims   = d[v].dims
         name   = d[v].name
         attrs  = d[v].attrs
-
         x_off, y_off = get_dim_offset(dims)
 
         if len(dims) == 1:
             nt = d.dims[dims[0]]
             data = np.zeros((nt))
-        if len(dims) == 2:
+        elif len(dims) == 2:
             data = np.zeros((ny + y_off, nx + x_off))
-        if len(dims) == 3:
+        elif len(dims) == 3 and v == 'parcels':
+            data = np.zeros((d.dims[dims[0]], d.attrs['n_total_parcels'], d.dims['parcel_info']))
+        elif len(dims) == 3:
             data = np.zeros((d.dims[dims[0]], ny + y_off, nx + x_off))
-        if len(dims) == 4:
+        elif len(dims) == 4:
             nt = d.dims[dims[0]]
             nz = d.dims[dims[1]]
             data = np.zeros((nt, nz, ny + y_off, nx + x_off))
 
-        # print(name, data.shape, dims, attrs)
         data_vars[v] = xr.DataArray(data.astype(np.float32), dims=dims, name=name, attrs=attrs)#, coords=coords)
 
     ds = xr.Dataset(data_vars, attrs=d.attrs)
@@ -119,6 +118,7 @@ def agg_file(first_file, verbose=True):
 
     data_set = set_up_dataset(all_data[0])
 
+    parcel_i = 0
     ids, ide, jds, jde, kds, kde = get_dims(all_data[0], section='d')
     for d in all_data:
         ims, ime, jms, jme, kms, kme = get_dims(d, section='m')
@@ -145,15 +145,24 @@ def agg_file(first_file, verbose=True):
         for v in d.variables:
             dims   = d[v].dims
             x_off, y_off = get_dim_offset(dims)
+            if v == 'parcels':
+                n_local_parcels = d.parcels.shape[1]
 
-            if len(dims) == 2:
+                d1 = data_set.parcels.values.shape[0]
+                d3 = data_set.parcels.values.shape[2]
+                data_set.parcels.values[np.ix_(np.arange(0,d1),
+                                               np.arange(parcel_i,parcel_i+n_local_parcels),
+                                               np.arange(0,d3))] = d.parcels.values
+                parcel_i += n_local_parcels # number of parcels in file
+
+            elif len(dims) == 2:
                 data_set[v].values[ys:ye, xs:xe] = d[v].values[yts:yte, xts:xte]
-            if len(dims) == 3:
+            elif len(dims) == 3:
                 if dims[0] == "time":
                     data_set[v].values[:, ys:ye+y_off, xs:xe+x_off] = d[v].values[:, yts:yte+y_off, xts:xte+x_off]
                 else:
                     data_set[v].values[zs:ze, ys:ye+y_off, xs:xe+x_off] = d[v].values[zts:zte, yts:yte+y_off, xts:xte+x_off]
-            if len(dims) == 4:
+            elif len(dims) == 4:
                 data_set[v].values[:,zs:ze, ys:ye+y_off, xs:xe+x_off] = d[v].values[:,zts:zte, yts:yte+y_off, xts:xte+x_off]
 
     print(outputfile)
