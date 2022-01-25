@@ -12,7 +12,7 @@ class Forcing:
 
     def __init__(self,nt=10, nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
                  u_val=0.5, v_val=0.5, w_val=0.0,
-                 water_vapor_val=0.001, theta_val=300.0,
+                 water_vapor_val=0.001, theta_val=300.0, nt=2
                  height_value=500, dx=10, dy=10, dz_value=500.0,
                  qv_val=0.1, weather_model='basic',
                  pressure_func='calc_pressure_from_sea',
@@ -45,8 +45,12 @@ class Forcing:
 
         self.define_data_variables(nt, nz, nx, ny, height_value, lat_flat,
                                    lon_flat, dz_value, theta_val, u_val,
+<<<<<<< HEAD
                                    v_val, qv_val, weather_model, pressure_func,
                                    hill_height, Schaer_test, dx, x_m)
+=======
+                                   v_val, qv_val, weather_model, pressure_func)
+>>>>>>> 28c04e9 (Better organization, added pressure options)
 
         # define time
         t0 = datetime.datetime(2020,12,1)
@@ -130,9 +134,13 @@ class Forcing:
 
     def define_data_variables(self, nt, nz, nx, ny, height_value,lat_flat,
                               lon_flat, dz_value, theta_val, u_val, v_val,
+<<<<<<< HEAD
                               qv_val, weather_model, pressure_func, hill_height,
                               Schaer_test, dx, x_m):
 
+=======
+                              qv_val, weather_model, pressure_func):
+>>>>>>> 28c04e9 (Better organization, added pressure options)
         # --- u variable
         # if advection test is selected, set the appropriate windfield:
         if Schaer_test==True:
@@ -292,17 +300,28 @@ class Forcing:
         else:
              print("Error: ", pressure_model, " is not defined")
              exit()
+<<<<<<< HEAD
         # print("NX NY", self.nx, self.ny)
+=======
+        print("NX NY", self.nx, self.ny)
+>>>>>>> 28c04e9 (Better organization, added pressure options)
         for t in range(self.nt):
             for i in range(self.nx):
                 for j in range(self.ny):
                     if not np.array_equal(pressure_data[t,:,0,0],
+<<<<<<< HEAD
                                           pressure_data[t,:,j,i]):
                         print("ERROR: PRESSURE DATA NOT EQUAL THROUGHOUT")
                         sys.exit()
         # print("--- PRESSURE DATA EQUAL THROUGHOUT ---")
         # print(pressure_data[0,:,0,0])
         # exit()
+=======
+                                          pressure_data[t,:,i,j]):
+                        print("ERROR: PRESSURE DATA NOT EQUAL THROUGHOUT")
+                        sys.exit()
+        print("--- PRESSURE DATA EQUAL THROUGHOUT ---")
+>>>>>>> 28c04e9 (Better organization, added pressure options)
         del(pressure_data)
 
 
