@@ -15,6 +15,9 @@ contains
             call this%add_attribute(domain%info%attributes(i)%name, domain%info%attributes(i)%value)
         enddo
 
+        ! set parcel count for output_t
+        this%n_local_parcels = domain%parcels%image_parcel_count
+        this%n_total_parcels = domain%parcels%total_parcel_count
     end subroutine
 
 
@@ -24,7 +27,9 @@ contains
 
         if (.not.this%is_initialized) call this%init()
 
-        if (associated(variable%data_2d).or.associated(variable%data_3d)) then
+        if (associated(variable%data_parcels) .or. &
+            associated(variable%data_2d) .or. &
+            associated(variable%data_3d)) then
 
             if (this%n_variables == size(this%variables)) call this%increase_var_capacity()
 
@@ -141,6 +146,8 @@ contains
         if (0<var_list( kVARS%soil_totalmoisture) )         call this%add_to_output( get_metadata( kVARS%soil_totalmoisture           , domain%soil_totalmoisture%data_2d))
         if (0<var_list( kVARS%roughness_z0) )               call this%add_to_output( get_metadata( kVARS%roughness_z0                 , domain%roughness_z0%data_2d))
 
+        if (0<var_list( kVARS%parcels) ) &
+            call this%add_to_output( get_metadata( kVARS%parcels, domain%parcels%local, domain%parcels%image_parcel_count))
 
     end subroutine
 
@@ -185,6 +192,9 @@ contains
         call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL,"history","Created:"//todays_date_time//UTCoffset), "global attr")
         call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "image", this_image()))
 
+        ! ARTLESS PUT TOTAL PARCELS HERE?
+        if (this%n_total_parcels > 0) &
+            call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "n_total_parcels", this%n_total_parcels))
     end subroutine add_global_attributes
 
     subroutine setup_variables(this, time)
@@ -197,7 +207,6 @@ contains
         do i=1,this%n_variables
             ! create all dimensions or find dimension IDs if they exist already
             call setup_dims_for_var(this, this%variables(i))
-
             call setup_variable(this, this%variables(i))
         end do
 
@@ -263,7 +272,7 @@ contains
         class(output_t), intent(in) :: this
         integer,         intent(in) :: current_step
         type(Time_type), intent(in) :: time
-        integer :: i
+        integer :: i, num_p
         integer :: dim_3d(3)
 
         integer :: start_three_D_t(4) = [1,1,1,1]
@@ -291,6 +300,23 @@ contains
                         call check( nf90_put_var(this%ncfile_id, var%var_id,  var%data_2d),   &
                                 "saving:"//trim(var%name) )
                     endif
+                elseif (var%parcels) then
+                    ! if output is changed, change default_output_metadata.f90 as well
+                    num_p = this%n_local_parcels
+                    call check( nf90_put_var(this%ncfile_id, var%var_id,  &
+                        transpose(reshape([real(var%data_parcels(1:num_p)%parcel_id), &
+                                  var%data_parcels(1:num_p)%x, &
+                                  var%data_parcels(1:num_p)%y, &
+                                  var%data_parcels(1:num_p)%z_meters, &
+                                  var%data_parcels(1:num_p)%temperature, &
+                                  var%data_parcels(1:num_p)%pressure, &
+                                  var%data_parcels(1:num_p)%velocity, &
+                                  var%data_parcels(1:num_p)%water_vapor, &
+                                  var%data_parcels(1:num_p)%cloud_water, &
+                                  var%data_parcels(1:num_p)%lifetime &
+                                  ], [num_p,10])) &
+                            , start_two_D_t), &
+                            "saving:"//trim(var%name) )
                 endif
             end associate
         end do
@@ -411,7 +437,8 @@ contains
                 write(*,*) trim(extra)
             endif
             ! STOP the program execution
-            stop "Stopped"
+            call backtrace()
+            stop "Stopped: output_obj.f90 check"
         end if
     end subroutine check
 

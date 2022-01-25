@@ -7,6 +7,7 @@ type parcel_t
     integer :: parcel_id = -1
     logical :: exists = .false.
     integer :: moved
+    real :: lifetime
     real :: x, y, z
     real :: u, v, w
     real :: z_meters, z_interface

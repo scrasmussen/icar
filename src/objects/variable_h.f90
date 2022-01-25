@@ -2,6 +2,7 @@ module variable_interface
     use icar_constants,          only : kMAX_DIM_LENGTH, kMAX_STRING_LENGTH, kMAX_NAME_LENGTH
     use grid_interface,          only : grid_t
     use meta_data_interface,     only : meta_data_t
+    use parcel_type_interface,   only : parcel_t
 
     implicit none
 
@@ -11,18 +12,22 @@ module variable_interface
     type, extends(meta_data_t) :: variable_t
         real, pointer :: data_3d(:,:,:) => null()
         real, pointer :: data_2d(:,:)   => null()
+        type(parcel_t), pointer :: data_parcels(:) => null()
 
         real, pointer :: dqdt_3d(:,:,:) => null()   ! Note these have to be pointers so they get referenced when variable_t is passed around(?)
         real, pointer :: dqdt_2d(:,:)   => null()   ! Note these have to be pointers so they get referenced when variable_t is passed around(?)
 
+
         logical                         :: unlimited_dim = .False.
         logical                         :: three_d = .False.
         logical                         :: two_d = .False.
+        logical                         :: parcels = .False.
         logical                         :: force_boundaries = .True.
         logical                         :: computed = .False.
         character(len=kMAX_NAME_LENGTH) :: forcing_var = ""
 
         integer :: n_dimensions
+        integer :: n_parcels
         integer,                        allocatable :: dim_len(:)
         character(len=kMAX_DIM_LENGTH), allocatable :: dimensions(:)
 
