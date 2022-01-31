@@ -20,3 +20,8 @@ for v in ds1.variables:
 # print(f"Maximum difference={max_delta}")
 
 print(f"{max_delta}")
+
+if max_delta > 1.E-10 : 
+    sys.exit(0)
+else :
+    sys.exit(1)
