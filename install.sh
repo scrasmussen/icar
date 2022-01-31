@@ -55,10 +55,9 @@ if ! command -v brew > /dev/null ; then
 fi
 
 GCC_VER="11"
-brew install cmake netcdf fftw gcc@$GCC_VER pkg-config opencoarrays coreutils # coreutils supports `realpath` below
+brew install cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
-
 
 mkdir -p build/dependencies
 git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
