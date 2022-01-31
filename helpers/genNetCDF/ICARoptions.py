@@ -3,11 +3,11 @@ import datetime as date
 
 # class generates ICAR namelist file
 class ICARoptions:
-    def __init__(self, parcels, parcel_count=10, hrs=24, output_interval=3600, nz=15):
+    def __init__(self, parcel_count=0, hrs=24, output_interval=3600, nz=15):
         # initialize a few variables
         if (nz > 50):
             print('Warning: number of z-layers may not be enough')
-        if (parcels):
+        if (parcel_count > 0):
             self.add_parcels(parcel_count)
         self.output_list['outputinterval'] = output_interval
         self.parameters['nz'] = nz

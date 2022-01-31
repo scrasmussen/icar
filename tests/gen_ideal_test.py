@@ -47,9 +47,9 @@ class IdealTest:
 
 def main():
     # ICAR Options generate the ICAR namelist
-    nz = 40  # 32, good one for non-iter pressure
-    options = opt.ICARoptions(parcels=True, parcel_count=10,
-                              output_interval=60, nz=nz, hrs=6)
+    nz = 32 #40  # 32, good one for non-iter pressure
+    options = opt.ICARoptions(parcel_count=0, output_interval=60, nz=nz,
+                              hrs=0)
     print("Generated icar_options.nml")
     test = IdealTest(nz=nz, nx=40, ny=40, n_hills=1.0)
 
