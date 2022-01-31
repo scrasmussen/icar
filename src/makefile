@@ -156,7 +156,7 @@ ifeq ($(COMPILER), gnu)
 	# to enable OpenMP use this line... OpenMP seems to hang with more than 1 thread, probably an OpenCoarrays (v1.9.1) issue with not supporting threading
 	# COMP=-fopenmp -lgomp -O2 -c -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native  -fno-protect-parens # -ffast-math #-flto #
 	# LINK=-fopenmp -lgomp
-	COMP= -fopenmp -lgomp -O2 -mfma -c -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native  -fno-protect-parens # -ffast-math #-flto #
+	COMP= -g -fopenmp -lgomp -O2 -mfma -c -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native  -fno-protect-parens # -ffast-math #-flto #
 	LINK= -fopenmp -lgomp
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
@@ -294,7 +294,7 @@ ifeq ($(COMPILER), gnu)
 			CAF_FLAG=-fcoarray=lib
 		else
 			ifndef CAF_DIR
-				CAF_DIR=${HOME}/usr/local/lib
+				CAF_DIR=${HOME}/usr/local/lib64
 			endif
 			CAF_FLAG=-fcoarray=lib
 			CAF_LINK=-L${CAF_DIR} -lcaf_mpi
@@ -368,8 +368,9 @@ OBJS=    	$(BUILD)driver.o	        \
 		$(BUILD)grid_obj.o		\
 		$(BUILD)exchangeable_h.o	\
 		$(BUILD)exchangeable_obj.o	\
-		$(BUILD)parcel_interfaces.o	\
+		$(BUILD)parcel_type.o    	\
 		$(BUILD)parcel.o		\
+		$(BUILD)parcel_interface.o	\
 		$(BUILD)domain_h.o		\
 		$(BUILD)domain_obj.o		\
 		$(BUILD)boundary_h.o		\
@@ -652,7 +653,7 @@ $(BUILD)meta_data_h.o: $(OBJECTS)meta_data_h.f90 $(BUILD)icar_constants.o
 
 $(BUILD)variable_obj.o: $(OBJECTS)variable_obj.f90 $(BUILD)variable_h.o $(BUILD)co_utilities.o
 
-$(BUILD)variable_h.o: $(OBJECTS)variable_h.f90 $(BUILD)meta_data_h.o $(BUILD)icar_constants.o $(BUILD)grid_h.o
+$(BUILD)variable_h.o: $(OBJECTS)variable_h.f90 $(BUILD)meta_data_h.o $(BUILD)icar_constants.o $(BUILD)grid_h.o $(BUILD)parcel_type.o
 
 $(BUILD)variable_dict_h.o: $(OBJECTS)variable_dict_h.f90 $(BUILD)variable_h.o $(BUILD)icar_constants.o
 
@@ -666,10 +667,15 @@ $(BUILD)exchangeable_obj.o: $(OBJECTS)exchangeable_obj.f90 $(BUILD)exchangeable_
 
 $(BUILD)exchangeable_h.o: $(OBJECTS)exchangeable_h.f90 $(BUILD)grid_h.o $(BUILD)variable_h.o $(BUILD)assertions.o
 
-$(BUILD)parcel.o: $(OBJECTS)parcel.f90 $(BUILD)parcel_interfaces.o $(BUILD)assertions.o
-$(BUILD)parcel_interfaces.o: $(BUILD)domain_h.o $(BUILD)exchangeable_h.o $(BUILD)exchangeable_obj.o $(BUILD)grid_h.o $(BUILD)assertions.o
+$(BUILD)parcel_type.o: $(OBJECTS)parcel_type.f90 $(BUILD)grid_h.o
 
-$(BUILD)default_output_metadata.o: $(IO)default_output_metadata.f90 $(BUILD)icar_constants.o $(BUILD)variable_h.o $(BUILD)meta_data_h.o
+$(BUILD)parcel.o: $(OBJECTS)parcel.f90 $(BUILD)parcel_interface.o $(BUILD)assertions.o
+
+$(BUILD)parcel_interface.o: $(OBJECTS)parcel_interface.f90 $(BUILD)variable_h.o \
+	$(BUILD)grid_h.o $(BUILD)assertions.o $(BUILD)parcel_type.o $(BUILD)options_h.o
+
+$(BUILD)default_output_metadata.o: $(IO)default_output_metadata.f90 $(BUILD)icar_constants.o \
+	$(BUILD)variable_h.o $(BUILD)meta_data_h.o
 
 $(BUILD)restart_h.o: $(IO)restart_h.f90 $(BUILD)domain_h.o $(BUILD)output_h.o $(BUILD)options_h.o
 
@@ -693,8 +699,8 @@ $(BUILD)boundary_obj.o: $(OBJECTS)boundary_obj.f90 $(BUILD)boundary_h.o					\
 
 $(BUILD)domain_h.o: $(OBJECTS)domain_h.f90 $(BUILD)options_h.o $(BUILD)exchangeable_h.o \
 					$(BUILD)grid_h.o 	$(BUILD)meta_data_h.o $(BUILD)data_structures.o	\
-					$(BUILD)time_h.o 	$(BUILD)boundary_h.o	 						\
-					$(BUILD)time_io.o	$(BUILD)io_routines.o $(BUILD)parcel_interfaces.o
+					$(BUILD)time_h.o 	$(BUILD)boundary_h.o	 			\
+					$(BUILD)time_io.o	$(BUILD)io_routines.o $(BUILD)parcel_interface.o
 $(BUILD)domain_obj.o: $(OBJECTS)domain_obj.f90 $(BUILD)domain_h.o $(BUILD)options_h.o $(BUILD)grid_h.o 	\
 					$(BUILD)string.o $(BUILD)assertions.o $(BUILD)geo_reader.o 							\
 					$(BUILD)atm_utilities.o $(BUILD)io_routines.o $(BUILD)co_utilities.o 				\
@@ -786,18 +792,17 @@ $(BUILD)mp_simple.o:$(PHYS)mp_simple.f90 $(BUILD)data_structures.o $(BUILD)optio
 ###################################################################
 #	Convection code
 ###################################################################
-$(BUILD)cu_driver.o:$(PHYS)cu_driver.f90 $(BUILD)cu_tiedtke.o  $(BUILD)cu_nsas.o $(BUILD)cu_bmj.o $(BUILD)cu_parcel.o  \
-					$(BUILD)data_structures.o $(BUILD)icar_constants.o $(BUILD)domain_h.o
+$(BUILD)cu_driver.o:$(PHYS)cu_driver.f90 $(BUILD)cu_tiedtke.o \
+        $(BUILD)cu_nsas.o $(BUILD)cu_bmj.o \
+	$(BUILD)cu_parcel.o $(BUILD)data_structures.o \
+	$(BUILD)icar_constants.o $(BUILD)domain_h.o
 
 $(BUILD)cu_tiedtke.o:$(PHYS)cu_tiedtke.f90
 
 $(BUILD)cu_kf.o:$(PHYS)cu_kf.f90
 
-$(BUILD)cu_nsas.o:$(PHYS)cu_nsas.f90
-
-$(BUILD)cu_bmj.o:$(PHYS)cu_bmj.f90
-
-$(BUILD)cu_parcel.o:$(PHYS)cu_parcel.f90
+$(BUILD)cu_parcel.o:$(PHYS)cu_parcel.f90 $(BUILD)variable_h.o \
+	$(BUILD)parcel_interface.o
 
 ###################################################################
 #	Radiation code
@@ -836,7 +841,7 @@ $(BUILD)lsm_basic.o: $(PHYS)lsm_basic.f90 $(BUILD)data_structures.o
 
 $(BUILD)lsm_noahdrv.o: $(PHYS)lsm_noahdrv.f90 $(BUILD)lsm_noahlsm.o
 
-$(BUILD)lsm_noahlsm.o: $(PHYS)lsm_noahlsm.f90
+$(BUILD)lsm_noahlsm.o: $(PHYS)lsm_noahlsm.f90 $(BUILD)variable_h.o
 
 $(BUILD)lsm_noahmpdrv.o: $(PHYS)lsm_noahmpdrv.f90 $(BUILD)lsm_noahmplsm.o \
 	          $(BUILD)lsm_noahmp_gecros.o $(BUILD)lsm_noahmp_glacier.o
