@@ -353,11 +353,11 @@ module parcel_interface
      end subroutine
 
      module subroutine write_bv_data(this, bv, bv_i, parcel_id, &
-         timestep, buf_size)
+         timestep, buf_size_i)
        class(exchangeable_parcel), intent(in) :: this
-       real, intent(in) :: bv(buf_size)
-       integer, intent(in) :: parcel_id(buf_size)
-       integer, intent(in) :: bv_i, timestep, buf_size
+       integer, intent(in) :: bv_i, timestep, buf_size_i
+       real, intent(in) :: bv(buf_size_i)
+       integer, intent(in) :: parcel_id(buf_size_i)
      end subroutine
 
      module subroutine dry_lapse_rate(pressure, temperature, potential_temp, &
