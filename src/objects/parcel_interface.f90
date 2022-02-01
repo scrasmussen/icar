@@ -279,7 +279,7 @@ module parcel_interface
      end subroutine
 
      module subroutine write_bv_data(this, bv, bv_i, parcel_id, &
-         timestep, buf_size)
+         timestep, buf_size_i)
        class(exchangeable_parcel), intent(in) :: this
        integer, intent(in) :: bv_i, timestep, buf_size
        real, intent(in) :: bv(buf_size)

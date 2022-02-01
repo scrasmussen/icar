@@ -15,10 +15,11 @@ class Forcing:
 
     def __init__(self, nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
                  u_val=0.5, v_val=0.5, w_val=0.0,
-                 water_vapor_val=0.001, theta_val=300.0, nt=1,
+                 water_vapor_val=0.001, theta_val=300.0, nt=2,
                  height_value=500, dx=10, dy=10, dz_value=500.0,
-                 qv_val=0.1, weather_model='basic'):
-
+                 qv_val=0.1, weather_model='basic',
+                 pressure_func='calc_pressure_from_sea'):
+        print(weather_model.capitalize(), "weather model in use")
         self.setup_class_variables(nz, nx, ny, nt, sealevel_pressure)
 
         # --- Create and define variables for datafile
@@ -28,7 +29,7 @@ class Forcing:
 
         self.define_data_variables(nt, nz, nx, ny, height_value, lat_flat,
                                    lon_flat, dz_value, theta_val, u_val,
-                                   v_val, qv_val, weather_model)
+                                   v_val, qv_val, weather_model, pressure_func)
 
         # define time
         t0 = datetime.datetime(2020,12,1)
@@ -112,7 +113,7 @@ class Forcing:
 
     def define_data_variables(self, nt, nz, nx, ny, height_value,lat_flat,
                               lon_flat, dz_value, theta_val, u_val, v_val,
-                              qv_val, weather_model):
+                              qv_val, weather_model, pressure_func):
         # --- u variable
         self.u = xr.Variable(self.dims4d,
                              np.full([nt, nz, nx, ny], u_val),
@@ -159,7 +160,7 @@ class Forcing:
         self.set_theta(theta_val, weather_model)
 
         # --- Pressure
-        self.set_pressure(weather_model)
+        self.set_pressure(weather_model, pressure_func)
 
         # --- Temperature
         self.set_temperature(weather_model)
@@ -186,22 +187,29 @@ class Forcing:
                                  {'long_name':'Potential Temperature',
                                   'units':"K"})
 
-    def set_pressure(self, model='basic'):
+    def set_pressure(self, model='basic',
+                     pressure_func='calc_pressure_from_sea'):
+        print('Pressure function used is', pressure_func)
         # basic is defined in ICAR's atm_utilities
         pressure_data = np.zeros([self.nt,self.nz,self.nx,self.ny])
         if model in ['basic', 'WeismanKlemp']:
-            # pressure_data[:,:,:,:] = np.vectorize(calc_pressure_from_sea)(
-            #     self.sealevel_pressure,
-            #     self.z_data[:,:,:,:])
-            pressure_data[:,0,:,:] = np.vectorize(calc_pressure_iter)(
-                self.sealevel_pressure,
-                0,
-                self.z_data[0,0,:,:])
-            for z in range(1,self.nz):
-                pressure_data[:,z,:,:] = np.vectorize(calc_pressure_iter)(
-                    pressure_data[0,z-1,:,:],
-                    self.z_data[0,z-1,:,:],
-                    self.z_data[0,z,:,:])
+            if pressure_func == 'calc_pressure_from_sea':
+                pressure_data[:,:,:,:] = np.vectorize(calc_pressure_from_sea)(
+                    self.sealevel_pressure,
+                    self.z_data[:,:,:,:])
+            elif pressure_func in ['calc_pressure_dz_iter',
+                                   'calc_pressure_1m_iter']:
+                pressure_data[:,0,:,:] = \
+                    np.vectorize(pressure_func_d[pressure_func])(
+                        self.sealevel_pressure,
+                        0,
+                        self.z_data[0,0,:,:])
+                for z in range(1,self.nz):
+                    pressure_data[:,z,:,:] = \
+                        np.vectorize(pressure_func_d[pressure_func])(
+                            pressure_data[0,z-1,:,:],
+                            self.z_data[0,z-1,:,:],
+                            self.z_data[0,z,:,:])
             self.pressure = xr.Variable(self.dims4d,
                                         pressure_data,
                                         {'long_name':'Pressure',
@@ -209,6 +217,15 @@ class Forcing:
         else:
              print("Error: ", pressure_model, " is not defined")
              exit()
+        print("NX NY", self.nx, self.ny)
+        for t in range(self.nt):
+            for i in range(self.nx):
+                for j in range(self.ny):
+                    if not np.array_equal(pressure_data[t,:,0,0],
+                                          pressure_data[t,:,i,j]):
+                        print("ERROR: PRESSURE DATA NOT EQUAL THROUGHOUT")
+                        sys.exit()
+        print("--- PRESSURE DATA EQUAL THROUGHOUT ---")
         del(pressure_data)
 
 
@@ -231,22 +248,22 @@ class Forcing:
 #---
 # Lambda like functions used for np.vectorize
 #---
-
 # Weisman Klemp Theta equation
-# z is elevation (m)
+# z is elevation in meters
 def calc_wk_theta(z):
     z_tr =  12000. # m
     theta_0 = 300. #
     theta_tr = 343. # K
     T_tr = 213. # K
-    c_p = 1.0 # kJ/kgK
+    WK_C_p = 1000.0
+    # WK_C_p = 1003.5
     # q_v0 = 11 # g kg^-1
     # q_v0 = 16 # g kg^-1
     # q_v0 = 14 # g kg^-1
     if z <= z_tr:
         theta = theta_0 + (theta_tr - theta_0) * (z / z_tr) ** (5./4)
     else:
-        theta = theta_tr * math.exp((gravity / (c_p * T_tr)) * (z - z_tr))
+        theta = theta_tr * math.exp((gravity / (WK_C_p * T_tr)) * (z - z_tr))
     return theta
 
 # ---
@@ -267,14 +284,18 @@ def compute_p_offset(p, dz, t, qv):
 def calc_pressure_from_sea(sealevel_pressure, z):
     return sealevel_pressure * (1 - 2.25577E-5 * z)**5.25588
 
-def calc_pressure(base_pressure, from_z, to_z):
+def calc_pressure_dz_iter(base_pressure, from_z, to_z):
     return base_pressure * (1 - 2.25577E-5 * (to_z - from_z))**5.25588
 
-def calc_pressure_iter(pressure, from_z, to_z):
+def calc_pressure_1m_iter(pressure, from_z, to_z):
     dz = 1
     for i in range(from_z,to_z,dz):
         pressure = pressure * (1 - 2.25577E-5 * dz)**5.25588
     return pressure
+
+pressure_func_d = {
+    'calc_pressure_dz_iter':calc_pressure_dz_iter,
+    'calc_pressure_1m_iter':calc_pressure_1m_iter}
 
 # theta * exner
 def calc_temp(pressure, theta):

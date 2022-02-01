@@ -1,16 +1,24 @@
 import sys
+import datetime as date
 
 # class generates ICAR namelist file
 class ICARoptions:
-    def __init__(self, parcels, parcel_count=10, output_interval=3600, nz=15):
+    def __init__(self, parcel_count=0, hrs=24, output_interval=3600, nz=15):
         # initialize a few variables
         if (nz > 50):
             print('Warning: number of z-layers may not be enough')
-        if (parcels):
+        if (parcel_count > 0):
             self.add_parcels(parcel_count)
         self.output_list['outputinterval'] = output_interval
         self.parameters['nz'] = nz
 
+        # handle length of runtime
+        fmt = "%Y-%m-%d %H:%M:%S"
+        date_s = self.parameters['forcing_start_date'].strip('"')
+        t_end = date.datetime.strptime(date_s, fmt) + date.timedelta(hours=hrs)
+        self.parameters['end_date'] = '"' + t_end.strftime(fmt) + '"'
+
+        # write to file
         self.f = open('icar_options.nml', 'w')
         self.gen(self.model_version)
         self.gen(self.output_list)
