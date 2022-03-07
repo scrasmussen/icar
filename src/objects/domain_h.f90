@@ -66,6 +66,7 @@ module domain_interface
     integer,allocatable :: cu_precipitation_bucket(:,:)
     type(variable_t) :: accumulated_snowfall
     integer,allocatable :: snowfall_bucket(:,:)
+    type(variable_t) :: external_precipitation
     type(variable_t) :: cloud_fraction
     type(variable_t) :: longwave
     type(variable_t) :: shortwave
@@ -96,6 +97,18 @@ module domain_interface
     type(variable_t) :: soil_temperature
     type(variable_t) :: soil_totalmoisture
     type(variable_t) :: soil_deep_temperature
+
+    ! link effective radius from microphysics to radiation scheme
+    type(variable_t) :: re_cloud
+    type(variable_t) :: re_ice
+    type(variable_t) :: re_snow
+    type(variable_t) :: out_longwave_rad
+    type(variable_t) :: longwave_cloud_forcing
+    type(variable_t) :: shortwave_cloud_forcing
+    type(variable_t) :: land_emissivity
+    type(variable_t) :: temperature_interface
+    type(variable_t) :: cosine_zenith_angle
+    type(variable_t) :: tend_swrad
 
     integer,allocatable :: land_mask(:,:)
     type(variable_t) :: latitude
