@@ -1,8 +1,8 @@
 import datetime
-import pandas as pd
+import math
 import numpy as np
+import pandas as pd
 import xarray as xr
-# import math
 
 # Create NetCDF file containing the forcing data
 class Forcing:
@@ -134,7 +134,6 @@ class Forcing:
         dz = np.full([nz,nx,ny], dz_value)
         z_data = np.full([nt,nz,nx,ny], height_value)
         for k in range(1,nz):
-
             z_data[:,k,:,:] = z_data[:,k-1,:,:] + dz[k,:,:]
         self.z_data = z_data
         self.z = xr.Variable(self.dims4d,
@@ -150,12 +149,11 @@ class Forcing:
             for i in range(0,nx):
                 for j in range(0,ny):
                     pressure_data[:,k,i,j] = self.sealevel_pressure * \
-                        (1 - 2.25577E-5 * z_data[0,k,i,j])**5.25588
-        self.pressure = xr.Variable(dims4d,
+                        (1 - 2.25577E-5 * self.z_data[0,k,i,j])**5.25588
+        self.pressure = xr.Variable(self.dims4d,
                                     pressure_data,
                                     {'long_name':'Pressure',
                                      'units':'Pa'})
->>>>>>> origin/develop
 
         # --- Latitude
         self.lat = xr.Variable(["lat"],
