@@ -1,6 +1,7 @@
 import datetime
-import pandas as pd
+import math
 import numpy as np
+import pandas as pd
 import xarray as xr
 import math
 
@@ -45,12 +46,8 @@ class Forcing:
 
         self.define_data_variables(nt, nz, nx, ny, height_value, lat_flat,
                                    lon_flat, dz_value, theta_val, u_val,
-<<<<<<< HEAD
                                    v_val, qv_val, weather_model, pressure_func,
                                    hill_height, Schaer_test, dx, x_m)
-=======
-                                   v_val, qv_val, weather_model, pressure_func)
->>>>>>> 28c04e9 (Better organization, added pressure options)
 
         # define time
         t0 = datetime.datetime(2020,12,1)
@@ -134,13 +131,9 @@ class Forcing:
 
     def define_data_variables(self, nt, nz, nx, ny, height_value,lat_flat,
                               lon_flat, dz_value, theta_val, u_val, v_val,
-<<<<<<< HEAD
                               qv_val, weather_model, pressure_func, hill_height,
                               Schaer_test, dx, x_m):
 
-=======
-                              qv_val, weather_model, pressure_func):
->>>>>>> 28c04e9 (Better organization, added pressure options)
         # --- u variable
         # if advection test is selected, set the appropriate windfield:
         if Schaer_test==True:
@@ -300,28 +293,13 @@ class Forcing:
         else:
              print("Error: ", pressure_model, " is not defined")
              exit()
-<<<<<<< HEAD
-        # print("NX NY", self.nx, self.ny)
-=======
-        print("NX NY", self.nx, self.ny)
->>>>>>> 28c04e9 (Better organization, added pressure options)
         for t in range(self.nt):
             for i in range(self.nx):
                 for j in range(self.ny):
                     if not np.array_equal(pressure_data[t,:,0,0],
-<<<<<<< HEAD
                                           pressure_data[t,:,j,i]):
                         print("ERROR: PRESSURE DATA NOT EQUAL THROUGHOUT")
                         sys.exit()
-        # print("--- PRESSURE DATA EQUAL THROUGHOUT ---")
-        # print(pressure_data[0,:,0,0])
-        # exit()
-=======
-                                          pressure_data[t,:,i,j]):
-                        print("ERROR: PRESSURE DATA NOT EQUAL THROUGHOUT")
-                        sys.exit()
-        print("--- PRESSURE DATA EQUAL THROUGHOUT ---")
->>>>>>> 28c04e9 (Better organization, added pressure options)
         del(pressure_data)
 
 
