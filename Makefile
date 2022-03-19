@@ -1,3 +1,7 @@
+#
+# Makefile is for fpm install only
+# See `scripts` directory for build and use instructions
+#
 SRC = $(wildcard src/*/*.f90)
 OBJ = $(patsubst %.f90, %.o, $(SRC))
 files_tmp=$(subst /,_,$(SRC))
