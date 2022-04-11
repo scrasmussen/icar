@@ -5,7 +5,6 @@ module options_interface
                                            block_options_type, adv_options_type, lsm_options_type, bias_options_type,   &
                                            cu_options_type, output_options_type, parcel_options_type, rad_options_type
 
-
     implicit none
 
     private
