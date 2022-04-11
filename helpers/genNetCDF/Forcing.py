@@ -2,7 +2,7 @@ import datetime
 import pandas as pd
 import numpy as np
 import xarray as xr
-# import math
+import math
 
 # Create NetCDF file containing the forcing data
 class Forcing:
@@ -66,7 +66,6 @@ class Forcing:
         # water_vapor[:,:,:] = sat_mr(temperature[:,:,:], pressure[:,:,:])
 
         water_vapor = sat_mr(temperature, pressure)
-
         return water_vapor
 
 
@@ -133,8 +132,14 @@ class Forcing:
         # --- Atmospheric Elevation
         dz = np.full([nz,nx,ny], dz_value)
         z_data = np.full([nt,nz,nx,ny], height_value)
-        for k in range(1,nz):
+        # dz[0,:,:] = [50.]
+        # dz[1,:,:] = [75.]
+        # dz[2,:,:] = [125.]
+        # dz[3,:,:] = [200.]
+        # dz[4,:,:] = [300.]
+        # dz[5,:,:] = [400.]
 
+        for k in range(1,nz):
             z_data[:,k,:,:] = z_data[:,k-1,:,:] + dz[k,:,:]
         self.z_data = z_data
         self.z = xr.Variable(self.dims4d,
@@ -155,7 +160,6 @@ class Forcing:
                                     pressure_data,
                                     {'long_name':'Pressure',
                                      'units':'Pa'})
->>>>>>> origin/develop
 
         # --- Latitude
         self.lat = xr.Variable(["lat"],
@@ -240,6 +244,7 @@ class Forcing:
                                           pressure_data[t,:,i,j]):
                         print("ERROR: PRESSURE DATA NOT EQUAL THROUGHOUT")
                         sys.exit()
+
         print("--- PRESSURE DATA EQUAL THROUGHOUT ---")
         del(pressure_data)
 
