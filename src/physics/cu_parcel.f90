@@ -16,6 +16,7 @@ module module_cu_parcel
   logical, parameter :: brunt_vaisala_data = .false.
   logical, parameter :: replacement = .false. ! parcel replacement
   logical, parameter :: replacement_message = .true.
+  logical, parameter :: init_theta = .true.
   integer            :: local_buf_size
 
 contains
@@ -25,6 +26,7 @@ contains
       z_interface, z_m, potential_temp, pressure, &
       u_in, v_in, w_in, dz_val, &
       water_vapor, cloud_water_mass, &
+      temp_env, &
       input_buf_size, halo_width)
       class(exchangeable_parcel), intent(inout) :: parcels
       class(exchangeable_t), intent(in)    :: potential_temp
@@ -35,6 +37,7 @@ contains
       type(variable_t), intent(in)  :: z_interface
       type(variable_t), intent(in)  :: dz_val
       type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
+      type(variable_t), intent(in)  :: temp_env
       integer, intent(in), optional :: input_buf_size
       integer, intent(in), optional :: halo_width
 
@@ -56,7 +59,8 @@ contains
           if (parcels%local(p_i)%exists .eqv. .TRUE.) then
               call init_parcel_physics(parcels%local(p_i), pressure, &
                   potential_temp, u_in, v_in, w_in, &
-                  z_m, z_interface, water_vapor, cloud_water_mass)
+                  z_m, z_interface, water_vapor, cloud_water_mass, &
+                  temp_env)
           end if
           ! print *, "PARCEL", parcels%local(p_i)
       end do
@@ -67,6 +71,7 @@ contains
       z_interface, z_m, potential_temp, pressure, &
       u_in, v_in, w_in, dz_val, &
       water_vapor, cloud_water_mass, &
+      temp_env, &
       input_buf_size, halo_width)
       class(parcel_t), intent(inout) :: parcel
       class(exchangeable_t), intent(in)    :: potential_temp
@@ -77,6 +82,7 @@ contains
       type(variable_t), intent(in)  :: z_interface
       type(variable_t), intent(in)  :: dz_val
       type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
+      type(variable_t), intent(in), optional  :: temp_env
       integer, intent(in), optional :: input_buf_size
       integer, intent(in), optional :: halo_width
       integer :: me, create, seed(34)
@@ -100,7 +106,7 @@ contains
   subroutine init_parcel_physics(parcel, pressure, potential_temp, u_in, &
       v_in, w_in, z_m, z_interface, &
       water_vapor, cloud_water_mass, &
-      times_moved)
+      temp_env)
     type(parcel_t), intent(inout) :: parcel
     type(variable_t), intent(in) :: pressure
     class(exchangeable_t), intent(in) :: potential_temp
@@ -108,15 +114,31 @@ contains
     type(variable_t), intent(in) :: z_m
     type(variable_t), intent(in) :: z_interface
     type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
-    integer, intent(in), optional :: times_moved
+    type(variable_t), intent(in), optional :: temp_env
+    ! integer, intent(in), optional :: times_moved
     integer :: x0, z0, y0, x1, z1, y1
     real :: x, z, y, exner_val
+    real :: test_velocity, test_temp
+
+    ! print *, "-------------------SETTING XYZ FOR TEST----------------"
+    ! parcel%x = 50
+    ! parcel%y = 50
+    ! parcel%z = 05
+    ! print*, "MAKING Z LOWER"
+    parcel%z = 1
+    test_velocity = 5.0
+    test_temp = 0.0
+    ! parcel%x = 20
+    ! parcel%y = 20
+    !
 
     if (debug .eqv. .true.) &
         print *, "=== AIR_PARCEL_PHYSIC INIT for PARCEL", parcel%parcel_id
     x = parcel%x;
     z = parcel%z;
     y = parcel%y;
+
+
     x0 = floor(x); z0 = floor(z); y0 = floor(y);
     x1 = ceiling(x); z1 = ceiling(z); y1 = ceiling(y);
 
@@ -139,13 +161,6 @@ contains
     end associate
 
     associate (A => z_interface%data_3d) ! TODO: look at this
-        ! print *, "------------------------"
-        ! print *, this_image(), ": x", x, "y", y
-        ! print *, this_image(), ":", shape(A), "|L|", lbound(A), "|U|", ubound(A)
-        ! print *, this_image(), ":", shape(z_interface%data_3d), "|L|", lbound(z_interface&
-        !     &%data_3d), "|U|",ubound(z_interface%data_3d)
-        ! sync all
-        ! stop "ARTLESS 2"
         parcel%z_interface = bilinear_interpolation(x, x0, x1, y, y0, y1, &
             A(x0,1,y0), A(x0,1,y1), A(x1,1,y0), A(x1,1,y1))
     end associate
@@ -162,21 +177,24 @@ contains
     ! end associate
 
     exner_val = exner_function_local(parcel%pressure)
+    parcel%temperature = exner_val * parcel%potential_temp
+    parcel%temperature = parcel%temperature + test_temp
 
+    ! --- Add random value to potential temperature
     ! call random_number(rand)
-    ! if (init_theta .eqv. .true.) then
-    !     parcel%potential_temp = parcel%potential_temp * (1 + 1.0 / 100) ! random 0-1% change
-    !     ! else
-    !     !     theta_val = theta_val ! * (1 + 0.01) ! increase by 1%
-    ! end if
+    if (init_theta .eqv. .true.) then
+        parcel%potential_temp = parcel%potential_temp * (1 + 0.0 / 100) ! non-random increase
+        ! else
+        !     theta_val = theta_val ! * (1 + 0.01) ! increase by 1%
+    end if
 
     ! Wind
     associate (A => w_in%data_3d)
         parcel%w = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
-       parcel%velocity =  parcel%w
     end associate
+    parcel%velocity = test_velocity
 
     associate (A => u_in%data_3d)
         parcel%u = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
@@ -189,9 +207,18 @@ contains
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
     end associate
 
-    parcel%temperature = exner_val * parcel%potential_temp
+    ! DEBUG: remove after debugging
+    ! if (present(temp_env) .eqv. .true.) then
+    !     associate (A => temp_env%data_3d)
+    !         tmp_temp = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
+    !             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+    !             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+    !         if (abs(parcel%temperature - tmp_temp) > 2.0 ) then
+    !             print *, "WARNING-----------", parcel%temperature , "vs", tmp_temp
+    !         end if
+    !     end associate
+    ! end if
 
-    ! parcel%relative_humidity = 0
     parcel%relative_humidity = &
         sat_mr_local(parcel%temperature, parcel%pressure) *  0.99 !0.99
 
@@ -200,6 +227,10 @@ contains
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
     end associate
+    ! print *, "ENV WV=", water_vapor%data_3d(4,:,4)
+
+    ! print *, "WV", parcel%water_vapor
+    ! stop "LESSART"
     associate (A => cloud_water_mass%data_3d)
         parcel%cloud_water = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
@@ -207,8 +238,9 @@ contains
     end associate
 
     ! if (debug .eqv. .true.) then
-        print *, "after ini parcel ="
-        call parcel%print_parcel()
+        ! print *, "after ini parcel ="
+        ! call parcel%print_parcel()
+        ! print *, "parcel p", parcel%pressure, "at", parcel%z
     ! end if
   end subroutine init_parcel_physics
 
@@ -257,17 +289,10 @@ contains
 
     do i=1,ubound(this%local,1)
         associate (parcel=>this%local(i))
-    ! print *, "___________________ i =", i, "_________________________"
     if (parcel%exists .eqv. .true.) then
         call this%parcel_bounds_check(parcel, grid)
     else
         cycle
-    end if
-
-    if (parcel%parcel_id .eq. 7) then
-        debug = .true.
-    else
-        debug = .false.
     end if
 
     parcel%lifetime = parcel%lifetime + 1
@@ -304,11 +329,13 @@ contains
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
     end associate
 
-
     buoyancy = (T - T_prime) / T_prime
     a_prime = buoyancy * gravity ! Acceleration
     ! d = v_0 * t + 1/2 * a * t^2
     z_displacement = parcel%velocity * dt + 0.5 * a_prime * dt * dt
+
+    ! print *, "------- dif", T-T_prime, "v", parcel%velocity, "a'", a_prime
+
     ! z_displacement = parcel%velocity + 0.5 * a_prime
     if (debug .eqv. .true.) then
         print*, "~287"
@@ -342,7 +369,6 @@ contains
     ! ARTLESS TURNING THIS OFF ONLY WIND
     delta_z = (z_displacement) / dz_val
     parcel%z = parcel%z + delta_z
-
 
     if (debug .eqv. .true.) then
         print*, "~318"
@@ -394,7 +420,7 @@ contains
     wind_correction = (dt*1.0 / (dz_val ))
     ! parcel%z = parcel%z + (parcel%w * wind_correction)
     wind_correction = (dt*1.0 / (dx_val ))
-    if (me .eq. 1 .and. parcel%parcel_id .eq. 0) &
+    if (me .eq. 1 .and. parcel%parcel_id .eq. 0 .and. parcel%lifetime .eq. 0) &
         print *, "add back x and y and z-wind"
     ! parcel%x = parcel%x + (parcel%u * wind_correction)
     ! parcel%y = parcel%y + (parcel%v * wind_correction)
@@ -417,11 +443,9 @@ contains
     !     z_interface_val = bilinear_interpolation(x, x0, x1, y, y0, y1, &
     !         A(x0,y0), A(x0,y1), A(x1,y0), A(x1,y1))
     ! end associate
-
     ! Interface change from land change
-    z_wind_change = z_interface_val - parcel%z_interface
+    z_wind_change = z_interface_val - parcel%z_interface  ! currently 0, debugging
     parcel%z_interface = z_interface_val
-    print *, "Z_WIND_CHANGE = ", z_wind_change
     z_displacement = z_displacement + z_wind_change
 
     !-----------------------------------------------------------------
@@ -431,6 +455,8 @@ contains
     z_0 = parcel%z_meters
     z_1 = parcel%z_meters + z_displacement
     parcel%z_meters = z_1
+    ! print *, "z",parcel%z, "z_meters", parcel%z_meters, "mult",parcel%z * dz_val ,"z_wind_change", z_wind_change
+    ! print *, "z z_meters dif = ", (parcel%z_meters) - parcel%z*dz_val
     if (debug .eqv. .true.) then
         print*, "~364"
         print *, "PARCEL MOVEMENT: parcel id =", parcel%parcel_id, "z =", parcel%z
@@ -448,6 +474,7 @@ contains
         parcel = create_empty_parcel(parcel%parcel_id, grid)
         if (replacement .eqv. .false.) then
             parcel%exists = .false.
+            parcel%x = 0; parcel%z = 0; parcel%y = 0
         else
             call cu_parcel_init(parcel, grid, &
                 z_interface, z_m, potential_temp, pressure, &
@@ -499,6 +526,7 @@ contains
     !   temperature += delta_T
     !-----------------------------------------------------------------
     block
+    use icar_constants, only : LH_vaporization
     real :: saturate, condensate, vapor, vapor_needed, RH
     ! specific latent heat values, calculating using formula
     real, parameter :: condensation_lh = 2600!000 ! 2.5 x 10^6 J/kg
@@ -536,11 +564,13 @@ contains
         potential_T1 = parcel%potential_temp
         water_vapor0 = parcel%water_vapor
         cloud_water0 = parcel%cloud_water
+        ! print *, iter, ": water_vapor", water_vapor0, " / saturate", saturate, "= RH", RH, "& cloudwater=", cloud_water0
 
         parcel%relative_humidity = RH
         ! https://en.wikipedia.org/wiki/Latent_heat#Specific_latent_heat
         ! specific latent heat for condensation and evaporation
         specific_latent_heat = 2.5 * 10**6 ! J kg^-1
+        ! get this from ICAR module ARTLESS
 
         ! Parcel is falling, using evaporation of cloud water to keep
         ! the relative humidity at 1 if possible
@@ -579,6 +609,10 @@ contains
 
             ! update potential temperature, assumming pressure is constant
             parcel%potential_temp = parcel%temperature / exner_function_local(parcel%pressure)
+        if (parcel%water_vapor < 0.0) then
+            print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
+            stop "ERROR: WATER VAPOR = "
+        end if
 
 
             ! Parcel is raising and condensation is occurring
@@ -593,7 +627,7 @@ contains
 
             was_only_dry = .false.
             condensate = parcel%water_vapor - saturate
-            condensate = condensate / (6-iter) ! Saturated
+            ! condensate = condensate ! / (6-iter) ! Saturated
             parcel%water_vapor = parcel%water_vapor - condensate
             parcel%cloud_water = parcel%cloud_water + condensate
 
@@ -636,6 +670,10 @@ contains
             ! -- is pressure constant during this process?
             ! using Poisson's equation
             ! parcel%pressure = p0/ ((T0/parcel%temperature)**(1/0.286))
+        if (parcel%water_vapor < 0.0) then
+            print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
+            stop "ERROR: WATER VAPOR = "
+        end if
 
         else if (iter .eq. 1) then
             if (debug .eqv. .true.) then
@@ -643,6 +681,12 @@ contains
             end if
             exit
         end if
+
+        if (parcel%water_vapor < 0.0) then
+            print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
+            stop "ERROR: WATER VAPOR = "
+        end if
+
 
         if (debug .eqv. .true.) then
             print *, "     pressure  |  temp      |   ~heat    | potential"
@@ -681,11 +725,14 @@ contains
     ! RH = parcel%water_vapor / saturate
     ! parcel%relative_humidity = RH
     end block
+    ! print *, "lifetime", parcel%lifetime
+    ! if (parcel%lifetime == 1) &
+    !     stop "ARTLESS"
     call this%move_if_needed(parcel, grid)
     ! print *, "POST MOVE IF NEEDED"
     ! call parcel%print_parcel()
     debug = .false.
-    print *, "END OF PARCELS PHYSICS"
+    ! print *, "END OF PARCELS PHYSICS"
     ! stop "----------STOP------"  ! ARTLESS
     end associate
     end do
