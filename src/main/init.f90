@@ -177,7 +177,7 @@ contains
         call cu_parcels_init(domain%parcels, domain%grid, &
             domain%z_interface, domain%z, domain%potential_temperature, &
             domain%pressure, domain%u, domain%v, domain%w, &
-            domain%dz_interface, domain%water_vapor, domain%cloud_water_mass)
+            domain%dz_interface, domain%water_vapor, domain%cloud_water_mass, domain%temperature)
     end subroutine parcel_init
 ! ------------------------------------------------------------------------------------------
 !-==== Model Domain Section ====
