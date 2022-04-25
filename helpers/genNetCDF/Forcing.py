@@ -248,6 +248,20 @@ class Forcing:
 
 
 
+
+        # --- set RH
+    def set_qv(self, qv_val, model='basic'):
+        if model in ['basic']:
+            qv = np.full([self.nt, self.nz, self.nx, self.ny], qv_val)
+        elif model in ['WeismanKlemp']:
+            qv = np.zeros([self.nt, self.nz, self.nx, self.ny])
+            qv[:,:,:,:] = np.vectorize(calc_wk_qv)(self.z_data[:,:,:,:])
+            # qv[:,:,:,:] = qv[0,:,:,:]
+
+        self.qv =  xr.Variable(self.dims4d, qv,
+                     {'long_name':'Relative Humidity',
+                      'units':"kg kg**-1"})
+
     def set_theta(self, theta_val, model='basic'):
         if model in ['basic']:
             theta = np.full([self.nt, self.nz, self.ny, self.nx], theta_val)
@@ -322,6 +336,14 @@ class Forcing:
 #---
 # Lambda like functions used for np.vectorize
 #---
+def calc_wk_qv(z):
+    z_tr =  12000. # m
+    if z <= z_tr:
+        qv = 1 - (3./4.) * (z / z_tr) ** (5./4.)
+    else:
+        qv = 0.25
+    return qv
+
 # Weisman Klemp Theta equation
 # z is elevation in meters
 def calc_wk_theta(z):
