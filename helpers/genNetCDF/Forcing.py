@@ -13,7 +13,7 @@ class Forcing:
 
     def __init__(self, nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
                  u_val=0.5, v_val=0.5, w_val=0.0,
-                 water_vapor_val=0.001, theta_val=300.0, nt=2,
+                 theta_val=300.0, nt=2,
                  height_value=500, dx=10, dy=10, dz_value=500.0,
                  qv_val=0.1, weather_model='basic',
                  pressure_func='calc_pressure_from_sea'):
