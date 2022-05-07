@@ -123,7 +123,7 @@ contains
         x, y, z, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
-        0.0, 0.0, 0.0)
+        0.0, 0.0, 0.0, 0.0)
     end procedure
 
 
@@ -726,37 +726,6 @@ contains
        call exit
     end if
   end procedure check_buf_size
-
-
-  ! read in parcels from file; TODO: test
-  module procedure initialize_from_file
-    integer :: total_parcels
-    namelist/parcel_parameters/ total_parcels
-
-    character(len=*), parameter :: file = 'parcel-parameters.txt'
-    integer :: unit, rc
-    logical :: exists
-
-    if (this_image() .eq. 1) &
-        print *, "Initializing convection parcels from file"
-    inquire(file=file, exist=exists)
-
-    if (exists .neqv. .true.) then
-       if (this_image() .eq. 1) &
-           print*, trim(file), " does not exist, please create file"
-       call exit
-    end if
-
-    unit = 10
-    open(unit, file=file, action='read', status='old', iostat=rc)
-    read(unit=unit, nml=parcel_parameters, iostat=rc)
-    close(unit)
-
-    stop "LOOK HERE AND FIX"
-    ! image_parcel_count = nint(total_parcels / real(num_images()))
-    ! local_buf_size = image_parcel_count * 4
-  end procedure initialize_from_file
-
 
   ! Check if parcel is out of the image's boundary
   module procedure parcel_bounds_check
