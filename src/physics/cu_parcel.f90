@@ -1,5 +1,6 @@
 module module_cu_parcel
   use variable_interface,     only : variable_t
+  use options_types,          only : parcel_options_type
   use parcel_interface,       only : exchangeable_parcel, create_empty_parcel
   use parcel_type_interface,  only : parcel_t
   use exchangeable_interface, only : exchangeable_t
@@ -13,6 +14,7 @@ module module_cu_parcel
   end interface cu_parcel
 
   logical  :: debug = .false.
+  type(parcel_options_type) :: parcel_options
   logical, parameter :: brunt_vaisala_data = .false.
   logical, parameter :: replacement = .false. ! parcel replacement
   logical, parameter :: replacement_message = .true.
@@ -26,7 +28,7 @@ contains
       z_interface, z_m, potential_temp, pressure, &
       u_in, v_in, w_in, dz_val, &
       water_vapor, cloud_water_mass, &
-      temp_env, &
+      temp_env, parcel_options_in, &
       input_buf_size, halo_width)
       class(exchangeable_parcel), intent(inout) :: parcels
       class(exchangeable_t), intent(in)    :: potential_temp
@@ -38,6 +40,7 @@ contains
       type(variable_t), intent(in)  :: dz_val
       type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
       type(variable_t), intent(in)  :: temp_env
+      type(parcel_options_type), intent(in)  :: parcel_options_in
       integer, intent(in), optional :: input_buf_size
       integer, intent(in), optional :: halo_width
 
@@ -51,6 +54,7 @@ contains
       integer :: p_i
 
       me = this_image()
+      parcel_options = parcel_options_in
 
       do p_i=1,parcels%image_parcel_count
           ! do p_i=1,parcels%image_num_parcels() ! FUND NOT WORKING
@@ -118,16 +122,16 @@ contains
     ! integer, intent(in), optional :: times_moved
     integer :: x0, z0, y0, x1, z1, y1
     real :: x, z, y, exner_val
-    real :: test_velocity, test_temp
+    real :: test_velocity
+    real :: random, plus_minus
 
     ! print *, "-------------------SETTING XYZ FOR TEST----------------"
     ! parcel%x = 50
     ! parcel%y = 50
     ! parcel%z = 05
     ! print*, "MAKING Z LOWER"
-    parcel%z = 1
-    test_velocity = 5.0
-    test_temp = 0.0
+    parcel%z = 3
+    test_velocity = -0.5
     ! parcel%x = 20
     ! parcel%y = 20
     !
@@ -178,7 +182,7 @@ contains
 
     exner_val = exner_function_local(parcel%pressure)
     parcel%temperature = exner_val * parcel%potential_temp
-    parcel%temperature = parcel%temperature + test_temp
+    parcel%temperature = parcel%temperature
 
     ! --- Add random value to potential temperature
     ! call random_number(rand)
@@ -236,6 +240,27 @@ contains
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
     end associate
+
+    ! TODO : ARTLESS
+    ! ! change parcel parameters based on namelist options
+    if (parcel_options%environment_only .eqv. .false.) then
+        if (int(parcel_options%velocity_init) .ne. -9999) &
+            parcel%velocity = parcel_options%velocity_init
+        parcel%velocity = parcel%velocity + parcel_options%velocity_offset
+        parcel%velocity = parcel%velocity * &
+            (1 - random * parcel_options%velocity_prob_range * plus_minus)
+        ! exner_val = exner_function_local(parcel%pressure)
+        if (int(parcel_options%temp_init) .ne. -9999) &
+            parcel%temperature = parcel_options%temp_init
+        parcel%temperature = parcel%temperature + &
+            parcel_options%temp_offset
+        parcel%temperature = parcel%temperature * &
+            (1 - random * parcel_options%temp_prob_range * plus_minus)
+        parcel%potential_temp = parcel%potential_temp * (1 + 0.0 / 100)
+        parcel%relative_humidity = &
+            sat_mr_local(parcel%temperature, parcel%pressure)
+    end if
+
 
     ! if (debug .eqv. .true.) then
         ! print *, "after ini parcel ="
@@ -330,6 +355,7 @@ contains
     end associate
 
     buoyancy = (T - T_prime) / T_prime
+    parcel%buoyancy = buoyancy
     a_prime = buoyancy * gravity ! Acceleration
     ! d = v_0 * t + 1/2 * a * t^2
     z_displacement = parcel%velocity * dt + 0.5 * a_prime * dt * dt
@@ -670,10 +696,10 @@ contains
             ! -- is pressure constant during this process?
             ! using Poisson's equation
             ! parcel%pressure = p0/ ((T0/parcel%temperature)**(1/0.286))
-        if (parcel%water_vapor < 0.0) then
-            print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
-            stop "ERROR: WATER VAPOR = "
-        end if
+            if (parcel%water_vapor < 0.0) then
+                print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
+                stop "ERROR: WATER VAPOR = "
+            end if
 
         else if (iter .eq. 1) then
             if (debug .eqv. .true.) then
@@ -736,6 +762,11 @@ contains
     ! stop "----------STOP------"  ! ARTLESS
     end associate
     end do
+
+    ! print change in temp, water vapor, other stuff
+    ! more indentation ! add end do statements, limit of 120
+    ! add notes
+    ! print statements with 1 parcel to figure out the weirdness
 
     if (brunt_vaisala_data .eqv. .true.) &
         call this%write_bv_data(bv, bv_i, parcel_id, timestep, local_buf_size)
