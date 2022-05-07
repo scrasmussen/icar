@@ -427,8 +427,9 @@ contains
                                   var%data_parcels(1:num_p)%velocity, &
                                   var%data_parcels(1:num_p)%water_vapor, &
                                   var%data_parcels(1:num_p)%cloud_water, &
-                                  var%data_parcels(1:num_p)%lifetime &
-                                  ], [num_p,10])) &
+                                  var%data_parcels(1:num_p)%lifetime, &
+                                  var%data_parcels(1:num_p)%buoyancy &
+                                  ], [num_p,11])) &
                             , start_two_D_t), &
                             "saving:"//trim(var%name) )
                 endif

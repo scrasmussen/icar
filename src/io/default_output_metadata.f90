@@ -130,7 +130,7 @@ contains
             meta_data%data_parcels  => input_data
             meta_data%parcels       =  .true.
             ! if this is changed, changed output_obj.f90 as well and up
-            local_shape(1) = 10 ! for now: id, x, y, z_m, temp, pressure, w, water_vapor, cloud_water, lifetime
+            local_shape(1) = 11 ! for now: id, x, y, z_m, temp, pressure, w, water_vapor, cloud_water, lifetime
             local_shape(2) = image_parcel_count
             allocate(meta_data%dim_len, source=local_shape)
         endif
@@ -2225,7 +2225,7 @@ contains
             var%unlimited_dim=.True.
             var%attributes  = [attribute_t("standard_name", "parcels"),              &
                                attribute_t("long_name",     "Semi-Lagrangian Convected Air Parcels"), &
-                               attribute_t("units",         "ID, x, y, z_meters, Temp, Pressure, w, qv, qc, lifetime")]
+                               attribute_t("units",         "ID, x, y, z_meters, Temp, Pressure, w, qv, qc, lifetime, buoyancy")]
         end associate
 
         ! loop through entire array setting n_dimensions and n_attrs based on the data that were supplied
