@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from netCDF4 import Dataset
+import numpy as np
 from sys import exit, path
 from os import getcwd
 path.insert(0, getcwd()+'/../helpers/genNetCDF')
@@ -9,32 +11,42 @@ import ICARoptions as opt
 # ---------------------------------------
 # ----- Settings For Generate Files -----
 # ---------------------------------------
-# choose general options
+# choose dimensions
 nz = 32
 nx = ny = 40
+
+# from ideal test
 dz_value          = 500.0    # thickness of each model gridcell   [m]
+# hill values currently do nothing
+# hill_height       = 1000.0   # height of the ideal hill(s) [m]
+# n_hills           = 1.0      # number of hills across the domain
+
+# relative_humidity = 0.01
+# u_test_val = v_test_val = w_test_val = 0.5
 u_test_val = v_test_val = w_test_val = 0.0
-qv_val = 0.001 # water vapor
+# u_test_val = v_test_val = 0.5
+# water_vapor_test_val = 0.000
+mixing_ratio = 0.001 # water vapor # not if constant
+qv_val = mixing_ratio
 total_num_parcels = 10
 
 # --- choose function for creating pressure ---
-# - Options: calc_pressure_from_sea, calc_pressure_dz_iter,
-#            or calc_pressure_1m_iter
 pressure_func = 'calc_pressure_from_sea'
-
+# pressure_func = 'calc_pressure_dz_iter'
+# pressure_func = 'calc_pressure_1m_iter'
 # --- choose weather model ---
-# - Options: basic of WeismanKlemp
+# weather_model = 'basic'
 weather_model = 'WeismanKlemp'
+
 
 def main():
     # ICAR Options generate the ICAR namelist
     opt.ICARoptions(nz=nz,
-                    output_vars=['pressure','temperature','parcels'],
+                    output_vars=['pressure','temperature','parcels','potential_temperature', 'qv'],
                     phys_opt_conv=4,
-                    phys_opt_mp = 2,
-                    total_parcels=total_num_parcels,
+                    parc_total_parcels=total_num_parcels,
                     start_date = '2020-12-01 00:00:00',
-                    end_date =   '2020-12-05 00:00:00')
+                    end_date =   '2020-12-04 00:00:00')
     print("Generated icar_options.nml")
 
     tg.Topography(nz, nx, ny)
