@@ -1941,9 +1941,15 @@ contains
         integer :: name_unit, stat
 
         integer :: total_parcels                   ! total number or air parcels
+        logical :: replace_parcel, environment_only
+        real :: velocity_init, velocity_offset, velocity_prob_range
+        real :: temp_init, temp_offset, temp_prob_range
 
         ! define the namelist
-        namelist /parcel_parameters/ total_parcels
+        namelist /parcel_parameters/ total_parcels, replace_parcel, &
+            environment_only, &
+            velocity_init, velocity_offset, velocity_prob_range, &
+            temp_init, temp_offset, temp_prob_range
 
         ! read the namelist options
         open(io_newunit(name_unit), file=filename)
@@ -1953,10 +1959,27 @@ contains
         if (stat .ne. 0) then
            ! set default values
            total_parcels = 0
+           replace_parcel = .false.
+           environment_only = .true.
+           velocity_init = -9999.0
+           velocity_offset = 0.0
+           velocity_prob_range = 0.0
+           temp_init = -9999.0
+           temp_offset = 0.0
+           temp_prob_range = 0.0
         end if
 
         ! store everything in the lsm_options structure
         parcel_options%total_parcels = total_parcels
+        parcel_options%replace_parcel = replace_parcel
+        parcel_options%environment_only = environment_only
+
+        parcel_options%velocity_init = velocity_init
+        parcel_options%velocity_offset = velocity_offset
+        parcel_options%velocity_prob_range = velocity_prob_range
+        parcel_options%temp_init = temp_init
+        parcel_options%temp_offset = temp_offset
+        parcel_options%temp_prob_range = temp_prob_range
 
         ! copy the data back into the global options data structure
         options%parcel_options = parcel_options

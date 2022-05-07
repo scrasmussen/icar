@@ -145,6 +145,14 @@ module options_types
     ! ------------------------------------------------
     type parcel_options_type
         integer :: total_parcels
+        logical :: replace_parcel
+        logical :: environment_only
+        real :: velocity_init
+        real :: velocity_offset
+        real :: velocity_prob_range
+        real :: temp_init
+        real :: temp_offset
+        real :: temp_prob_range
     end type parcel_options_type
 
     ! ------------------------------------------------
