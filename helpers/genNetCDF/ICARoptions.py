@@ -69,7 +69,15 @@ class ICARoptions:
                  use_agl_height = True,   #  Use height above ground level to interpolate the wind field instead of height above sea level.
                  agl_cap = 400,  #   Height at which we switch from AGL-interpolation to using ASL-interpolation
                  # parcels namelist
-                 total_parcels = 0):
+                 parc_total_parcels = 0,
+                 parc_replace_parcel = 'True',
+                 parc_environment_only='True',
+                 parc_velocity_init=-9999.0,
+                 parc_velocity_offset=0.0,
+                 parc_velocity_prob_range=0.0,
+                 parc_temp_init=-9999.0,
+                 parc_temp_offset=0.0,
+                 parc_temp_prob_range=0.0):
 
         # Open file, create namelist objects, then write
         f = open(filename, 'w')
@@ -154,7 +162,15 @@ class ICARoptions:
                                               smooth_wind_distance)
 
         self.parcels_list = ParcelsList(filename=f,
-                                        total_parcels=total_parcels)
+                                        total_parcels=parc_total_parcels,
+                                        replace_parcel=parc_replace_parcel,
+                                        environment_only=parc_environment_only,
+                                        velocity_init=parc_velocity_init,
+                                        velocity_offset=parc_velocity_offset,
+                                        velocity_prob_range=parc_velocity_prob_range,
+                                        temp_init=parc_temp_init,
+                                        temp_offset=parc_temp_offset,
+                                        temp_prob_range=parc_temp_prob_range)
 
         self.generate_all_namelists()
         f.close()
