@@ -791,7 +791,7 @@ $(BUILD)cu_tiedtke.o:$(PHYS)cu_tiedtke.f90
 $(BUILD)cu_kf.o:$(PHYS)cu_kf.f90
 
 $(BUILD)cu_parcel.o:$(PHYS)cu_parcel.f90 $(BUILD)variable_h.o \
-	$(BUILD)parcel_interface.o
+	$(BUILD)parcel_interface.o $(BUILD)opt_types.o
 
 ###################################################################
 #	Radiation code
