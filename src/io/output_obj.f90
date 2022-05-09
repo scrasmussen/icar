@@ -458,20 +458,28 @@ contains
                     ! if output is changed, change default_output_metadata.f90 as well
                     num_p = this%n_local_parcels
                     call check( nf90_put_var(this%ncfile_id, var%var_id,  &
-                        transpose(reshape([real(var%data_parcels(1:num_p)%parcel_id), &
-                                  var%data_parcels(1:num_p)%x, &
-                                  var%data_parcels(1:num_p)%y, &
-                                  var%data_parcels(1:num_p)%z_meters, &
-                                  var%data_parcels(1:num_p)%temperature, &
-                                  var%data_parcels(1:num_p)%pressure, &
-                                  var%data_parcels(1:num_p)%velocity, &
-                                  var%data_parcels(1:num_p)%water_vapor, &
-                                  var%data_parcels(1:num_p)%cloud_water, &
-                                  var%data_parcels(1:num_p)%lifetime, &
-                                  var%data_parcels(1:num_p)%buoyancy &
-                                  ], [num_p,11])) &
-                            , start_two_D_t), &
-                            "saving:"//trim(var%name) )
+                         transpose(reshape([real(&
+                         var%data_parcels(1:num_p)%parcel_id), &
+                         var%data_parcels(1:num_p)%lifetime, &
+                         var%data_parcels(1:num_p)%x, &
+                         var%data_parcels(1:num_p)%y, &
+                         var%data_parcels(1:num_p)%z, &
+                         var%data_parcels(1:num_p)%u, &
+                         var%data_parcels(1:num_p)%v, &
+                         var%data_parcels(1:num_p)%w, &
+                         var%data_parcels(1:num_p)%z_meters, &
+                         var%data_parcels(1:num_p)%z_interface, &
+                         var%data_parcels(1:num_p)%pressure, &
+                         var%data_parcels(1:num_p)%temperature, &
+                         var%data_parcels(1:num_p)%potential_temp, &
+                         var%data_parcels(1:num_p)%velocity, &
+                         var%data_parcels(1:num_p)%water_vapor, &
+                         var%data_parcels(1:num_p)%cloud_water, &
+                         var%data_parcels(1:num_p)%relative_humidity, &
+                         var%data_parcels(1:num_p)%buoyancy &
+                         ], [num_p,18])) &
+                         , start_two_D_t), &
+                         "saving:"//trim(var%name) )
                 endif
             end associate
         end do
