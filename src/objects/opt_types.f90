@@ -153,6 +153,8 @@ module options_types
         real :: temp_init
         real :: temp_offset
         real :: temp_prob_range
+        real :: rh_init
+        real :: rh_prob_range
     end type parcel_options_type
 
     ! ------------------------------------------------

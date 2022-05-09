@@ -1944,12 +1944,14 @@ contains
         logical :: replace_parcel, environment_only
         real :: velocity_init, velocity_offset, velocity_prob_range
         real :: temp_init, temp_offset, temp_prob_range
+        real :: rh_init, rh_prob_range
 
         ! define the namelist
         namelist /parcel_parameters/ total_parcels, replace_parcel, &
             environment_only, &
             velocity_init, velocity_offset, velocity_prob_range, &
-            temp_init, temp_offset, temp_prob_range
+            temp_init, temp_offset, temp_prob_range, &
+            rh_init, rh_prob_range
 
         ! read the namelist options
         open(io_newunit(name_unit), file=filename)
@@ -1967,6 +1969,8 @@ contains
            temp_init = -9999.0
            temp_offset = 0.0
            temp_prob_range = 0.0
+           rh_init = -1.0
+           rh_prob_range = 0.0
         end if
 
         ! store everything in the lsm_options structure
@@ -1980,6 +1984,8 @@ contains
         parcel_options%temp_init = temp_init
         parcel_options%temp_offset = temp_offset
         parcel_options%temp_prob_range = temp_prob_range
+        parcel_options%rh_init = rh_init
+        parcel_options%rh_prob_range = rh_prob_range
 
         ! copy the data back into the global options data structure
         options%parcel_options = parcel_options
