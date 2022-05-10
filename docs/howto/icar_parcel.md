@@ -16,7 +16,7 @@ $ git checkout scrasmussen/feature/air-parcels
 
 ## Run Parcel Generation
 * Change to `icar/tests` directory.
-* Generate parcel test files with `$./gen_parcel_test.py`. Edit python script to change options if desired.
+* Generate parcel test files with `$ ./gen_parcel_test.py`. Edit python script to change options if desired.
     * Note: See `icar/helpers/generateTestFiles/ICARoptions.py` for list of options that can generated for `icar_options.nml`
 * Run icar with `$ ../src/icar icar_options.nml`
 
