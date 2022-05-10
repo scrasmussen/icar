@@ -126,7 +126,8 @@ contains
     real :: random_val
 
     ! REMOVE THIS, switch to parcel parameters?
-    parcel%z = 3
+    ! parcel%z = 3
+    ! if (parcel%parcel_id .lt. 4)  parcel%z = 2
 
     ! default value if not passed by namelist
     parcel_rh = 0.99
@@ -266,7 +267,7 @@ contains
     end if
 
 
-    ! parcel%relative_humidity = sat_mr_local(parcel%temperature, parcel%pressure) / &
+    ! parcel%relative_humidity = parcel%water_vapor  / sat_mr_local(parcel%temperature, parcel%pressure)
     !      sat_mr_local(parcel%temperature, parcel%pressure)
     parcel%relative_humidity = parcel_rh
 
@@ -559,8 +560,8 @@ contains
     !   delta_T = Q_heat / c_p   ! c_p is specific heat capacity
     !   temperature += delta_T
     !-----------------------------------------------------------------
-    block
-    use icar_constants, only : LH_vaporization
+    block ! Moist Lapse Rate
+    use icar_constants, only : LH_vaporization, cp
     real :: saturate, condensate, vapor, vapor_needed, RH
     ! specific latent heat values, calculating using formula
     real, parameter :: condensation_lh = 2600!000 ! 2.5 x 10^6 J/kg
@@ -574,7 +575,7 @@ contains
     real :: cloud_water0,  cloud_water1
     real :: potential_T0, potential_T1
     integer :: repeat
-    logical :: was_only_dry
+    real :: divide_by
 
     if (debug .eqv. .true.) then
         call parcel%print_parcel()
@@ -587,12 +588,11 @@ contains
     potential_T0 = parcel%potential_temp
     call dry_lapse_rate(parcel%pressure, parcel%temperature, &
         parcel%potential_temp, z_displacement)
-    was_only_dry = .true.
     T1 = parcel%temperature
     p1 = parcel%pressure
     q_dry = 1004 * 1 * (abs(t1-t0))  ! q = c_p x m x delta_T
 
-    do iter = 1,4
+    do iter = 1,5
         saturate = sat_mr_local(parcel%temperature, parcel%pressure)
         RH = parcel%water_vapor / saturate
         potential_T1 = parcel%potential_temp
@@ -608,38 +608,37 @@ contains
 
         ! Parcel is falling, using evaporation of cloud water to keep
         ! the relative humidity at 1 if possible
-        vapor_needed = saturate - parcel%water_vapor
+        vapor_needed = saturate - parcel%water_vapor   ! mixing_ratio_devicit
+        if (iter .ge. 1) divide_by = 4
+        if (iter .ge. 3) divide_by = 3
+        if (iter .ge. 5) divide_by = 1.5
+        ! TODO: look up numerical theory for time steps
 
-        if (parcel%cloud_water .gt. 0.0 .and. RH .lt. 1.0 &
-            .and. vapor_needed .gt. 0.0000001) then
-            if (debug .eqv. .true.) &
-                print*, "==== cloud_water .gt. 0, rh .lt. 1, wet ===="
-
-            was_only_dry = .false.
+        if ((parcel%cloud_water .gt. 0.0) .and. (RH .lt. 1.0) .and. (vapor_needed .gt. 0.0000001)) then
+            if (debug .eqv. .true.) print*, "==== cloud_water .gt. 0, rh .lt. 1, wet ===="
             if (vapor_needed > parcel%cloud_water) then
                 vapor = parcel%cloud_water
-                vapor = vapor / (6-iter)                ! Saturated
+                vapor = vapor / divide_by!(8-iter)                ! Saturated
                 parcel%cloud_water = 0
             else
                 vapor = vapor_needed
-                vapor = vapor / (6-iter)                ! Saturated
+                vapor = vapor / divide_by!(8-iter)                ! Saturated
                 parcel%cloud_water = parcel%cloud_water - vapor
             end if
-
-
+            ! note: should probably rename vapor to more accurate term, amount of mass related
             parcel%water_vapor = parcel%water_vapor + vapor
 
             ! heat required by phase change
             Q_heat = specific_latent_heat * vapor ! kJ
-            q_wet = Q_heat
-            c_p = (1004 * (1 + 1.84 * vapor)) ! 3.3
+            q_wet = Q_heat ! debug statement
             ! c_p = 1004 ! specific heat of dry air at 0C
+            ! c_p = (1004 * (1 + 1.84 * vapor)) ! 3.3
+            c_p = cp ! 1012 from icar_constants.f90
+
             delta_t = Q_heat / c_p   ! 3.2c
             parcel%temperature = T1 - delta_t
 
-            if (debug .eqv. .true.) &
-                potential_temp0 = parcel%potential_temp
-
+            if (debug .eqv. .true.) potential_temp0 = parcel%potential_temp
 
             ! update potential temperature, assumming pressure is constant
             parcel%potential_temp = parcel%temperature / exner_function_local(parcel%pressure)
@@ -658,9 +657,11 @@ contains
             ! ============= process done ===============
 
             if (debug .eqv. .true.) print*, "==== rh .gt. 1, wet ===="
+            ! TODO: ADD ITERATION, use same name
+            ! saturate = sa
 
-            was_only_dry = .false.
             condensate = parcel%water_vapor - saturate
+            condensate = condensate / divide_by
             ! condensate = condensate ! / (6-iter) ! Saturated
             parcel%water_vapor = parcel%water_vapor - condensate
             parcel%cloud_water = parcel%cloud_water + condensate
@@ -681,17 +682,15 @@ contains
             ! heat from phase change
             Q_heat = specific_latent_heat * condensate ! kJ
             q_wet = Q_heat
-            ! print *, "Q_heat", Q_heat
-            ! exit
+
             !--------------------------------------------------------------
             ! calculate change in heat using specific heat (c_p)
             !--------------------------------------------------------------
             ! Stull: Practical Meteorology
-            c_p = (1004 * (1 + 1.84 * condensate)) ! 3.3
+            ! c_p = (1004 * (1 + 1.84 * condensate)) ! 3.3
             ! c_p = 1004 ! specific heat of dry air at 0C
-            ! print *, "c_p", c_p
+            c_p = cp ! 1012
             delta_T = Q_heat / c_p   ! 3.2c
-            ! print *, "delta_T", delta_t
             parcel%temperature = T1 + delta_T
             ! update potential temperature, assumming pressure is constant
             ! parcel%potential_temp = exner_function(parcel%pressure) / &
@@ -706,19 +705,16 @@ contains
             ! parcel%pressure = p0/ ((T0/parcel%temperature)**(1/0.286))
             if (parcel%water_vapor < 0.0) then
                 print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
-                stop "ERROR: WATER VAPOR = "
+                stop "ERROR: WATER VAPOR < 0.0 "
             end if
 
         else if (iter .eq. 1) then
-            if (debug .eqv. .true.) then
-                print*, "==== was dry process ===="
-            end if
+            if (debug .eqv. .true.) print*, "==== was dry process ===="
             exit
         end if
-
         if (parcel%water_vapor < 0.0) then
             print *, "ERROR: WATER VAPOR = ", parcel%water_vapor
-            stop "ERROR: WATER VAPOR = "
+            stop "ERROR: WATER VAPOR < 0.0 "
         end if
 
 
@@ -726,51 +722,30 @@ contains
             print *, "     pressure  |  temp      |   ~heat    | potential"
             print *, "pre ", p0, t0, ", -none-       ,", potential_t0
 
-            q_new_dry = &
-                1004 * (1) * (abs(parcel%temperature-t0))
+            q_new_dry = 1004 * (1) * (abs(parcel%temperature-t0))
             q_dif = abs(q_dry-(q_new_dry+q_wet))
-            print *, q_dry, q_new_dry, q_wet, q_dif, &
-                1004 * (1) * q_dif
+            print *, q_dry, q_new_dry, q_wet, q_dif, 1004 * (1) * q_dif
         end if
-        ! if ((debug .eqv. .true.) .and. (was_only_dry .eqv. .false.)) then
-        !    print *, "post", p1, t1, q_dry, potential_t1
-        !    print *, "new ", &
-        !         parcel%pressure, parcel%temperature, &
-        !         q_wet,  parcel%potential_temp
 
+    end do ! for saturated parcel iteration, iter = 1,5
+    parcel%cloud_water = parcel%cloud_water * 0.99
 
-        ! print *, "heat: q_dry = q_new_dry + q_wet"
-        ! print *, " ", q_dry, "=", q_new_dry, "+", q_wet
-        ! print *, "dif         =", q_dif, "which is ~ temp diff", &
-        !      1004 * (1) * q_dif
-
-        ! print *, "--test--"
-        ! print *, " t? ", t0 - (q_new_dry / (1004 * (1)) )
-
-        ! print *, "vapor_needed", vapor_needed, &
-        !      "new water_vapor", parcel%water_vapor, &
-        !      "new cloud water", parcel%cloud_water, &
-        !      "water_vapor0", water_vapor0, &
-        !      "cloud water0", cloud_water0
-        ! end if
-
-    end do
     ! saturate = sat_mr(parcel%temperature, parcel%pressure)
     ! RH = parcel%water_vapor / saturate
     ! parcel%relative_humidity = RH
-    end block
-    ! print *, "lifetime", parcel%lifetime
-    ! if (parcel%lifetime == 1) &
-    !     stop "ARTLESS"
-    call this%move_if_needed(parcel, grid)
-    ! print *, "POST MOVE IF NEEDED"
-    ! call parcel%print_parcel()
-    debug = .false.
-    ! print *, "END OF PARCELS PHYSICS"
-    ! stop "----------STOP------"  ! ARTLESS
-    end associate
-    end do
+    end block ! saturated parcel block
 
+    call this%move_if_needed(parcel, grid)
+
+    if (debug .eqv. .true.) then
+       call parcel%print_parcel()
+       print *, "END OF PARCELS PHYSICS"
+    end if
+    debug = .false.
+    end associate ! associate (parcel=>this%local(i))
+    end do ! end of iterating through parcels
+
+    ! todo
     ! print change in temp, water vapor, other stuff
     ! more indentation ! add end do statements, limit of 120
     ! add notes

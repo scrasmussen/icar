@@ -56,8 +56,8 @@ class ICARoptions:
                  calendar = 'standard',
                  input_interval = '3600',
                  dx = '4000.0',
-                 qv_is_relative_humidity ='true',
-                 readdz = 'true',
+                 qv_is_relative_humidity = 'True',
+                 readdz = 'True',
                  nz = '15',
                  z_is_geopotential = 'False',
                  z_is_on_interface = 'False',
@@ -71,13 +71,15 @@ class ICARoptions:
                  # parcels namelist
                  parc_total_parcels = 0,
                  parc_replace_parcel = 'True',
-                 parc_environment_only='True',
-                 parc_velocity_init=-9999.0,
-                 parc_velocity_offset=0.0,
-                 parc_velocity_prob_range=0.0,
-                 parc_temp_init=-9999.0,
-                 parc_temp_offset=0.0,
-                 parc_temp_prob_range=0.0):
+                 parc_environment_only = 'True',
+                 parc_velocity_init = -9999.0,
+                 parc_velocity_offset = 0.0,
+                 parc_velocity_prob_range = 0.0,
+                 parc_temp_init = -9999.0,
+                 parc_temp_offset = 0.0,
+                 parc_temp_prob_range = 0.0,
+                 parc_rh = -1.0,
+                 parc_rh_prob_range = 0.0):
 
         # Open file, create namelist objects, then write
         f = open(filename, 'w')
@@ -170,7 +172,9 @@ class ICARoptions:
                                         velocity_prob_range=parc_velocity_prob_range,
                                         temp_init=parc_temp_init,
                                         temp_offset=parc_temp_offset,
-                                        temp_prob_range=parc_temp_prob_range)
+                                        temp_prob_range=parc_temp_prob_range,
+                                        rh_init=parc_rh,
+                                        rh_prob_range=parc_rh_prob_range)
 
         self.generate_all_namelists()
         f.close()
