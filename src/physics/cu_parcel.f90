@@ -122,19 +122,14 @@ contains
     ! integer, intent(in), optional :: times_moved
     integer :: x0, z0, y0, x1, z1, y1
     real :: x, z, y, exner_val
-    real :: test_velocity
-    real :: random, plus_minus
+    real :: parcel_rh
+    real :: random_val
 
-    ! print *, "-------------------SETTING XYZ FOR TEST----------------"
-    ! parcel%x = 50
-    ! parcel%y = 50
-    ! parcel%z = 05
-    ! print*, "MAKING Z LOWER"
+    ! REMOVE THIS, switch to parcel parameters?
     parcel%z = 3
-    test_velocity = -0.5
-    ! parcel%x = 20
-    ! parcel%y = 20
-    !
+
+    ! default value if not passed by namelist
+    parcel_rh = 0.99
 
     if (debug .eqv. .true.) &
         print *, "=== AIR_PARCEL_PHYSIC INIT for PARCEL", parcel%parcel_id
@@ -198,7 +193,7 @@ contains
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
     end associate
-    parcel%velocity = test_velocity
+    parcel%velocity = parcel%w
 
     associate (A => u_in%data_3d)
         parcel%u = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
@@ -223,9 +218,6 @@ contains
     !     end associate
     ! end if
 
-    parcel%relative_humidity = &
-        sat_mr_local(parcel%temperature, parcel%pressure) *  0.99 !0.99
-
     associate (A => water_vapor%data_3d)
         parcel%water_vapor = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
@@ -245,22 +237,38 @@ contains
     ! ! change parcel parameters based on namelist options
     if (parcel_options%environment_only .eqv. .false.) then
         if (int(parcel_options%velocity_init) .ne. -9999) &
-            parcel%velocity = parcel_options%velocity_init
+             parcel%velocity = parcel_options%velocity_init
         parcel%velocity = parcel%velocity + parcel_options%velocity_offset
-        parcel%velocity = parcel%velocity * &
-            (1 - random * parcel_options%velocity_prob_range * plus_minus)
-        ! exner_val = exner_function_local(parcel%pressure)
+        if (int(parcel_options%velocity_prob_range) .ne. 0) then
+           call random_number(random_val)
+           random_val = random_val - 0.5
+        else
+           random_val = 0.0
+        end if
+
+        parcel%velocity = parcel%velocity + random_val * parcel_options%velocity_prob_range
+
         if (int(parcel_options%temp_init) .ne. -9999) &
             parcel%temperature = parcel_options%temp_init
-        parcel%temperature = parcel%temperature + &
-            parcel_options%temp_offset
-        parcel%temperature = parcel%temperature * &
-            (1 - random * parcel_options%temp_prob_range * plus_minus)
+        parcel%temperature = parcel%temperature + parcel_options%temp_offset
+        if (int(parcel_options%velocity_prob_range) .eq. 1) then
+           call random_number(random_val)
+           random_val = random_val - 0.5
+        else
+           random_val = 0.0
+        end if
+        parcel%temperature = parcel%temperature + random_val * parcel_options%temp_prob_range
+
         parcel%potential_temp = parcel%potential_temp * (1 + 0.0 / 100)
-        parcel%relative_humidity = &
-            sat_mr_local(parcel%temperature, parcel%pressure)
+
+        if (parcel_options%rh_init .ne. -1.0) &
+             parcel_rh = parcel_options%rh_init
     end if
 
+
+    ! parcel%relative_humidity = sat_mr_local(parcel%temperature, parcel%pressure) / &
+    !      sat_mr_local(parcel%temperature, parcel%pressure)
+    parcel%relative_humidity = parcel_rh
 
     ! if (debug .eqv. .true.) then
         ! print *, "after ini parcel ="
