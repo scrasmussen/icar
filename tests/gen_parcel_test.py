@@ -3,7 +3,7 @@ from netCDF4 import Dataset
 import numpy as np
 from sys import exit, path
 from os import getcwd
-path.insert(0, getcwd()+'/../helpers/genNetCDF')
+path.insert(0, getcwd()+'/../helpers/generateTestFiles')
 import Topography as tg
 import Forcing as fc
 import ICARoptions as opt
@@ -17,26 +17,31 @@ nx = ny = 40
 
 # from ideal test
 dz_value          = 500.0    # thickness of each model gridcell   [m]
-# hill values currently do nothing
+# hill values currently do nothing, but one hill is created
 # hill_height       = 1000.0   # height of the ideal hill(s) [m]
 # n_hills           = 1.0      # number of hills across the domain
 
-# relative_humidity = 0.01
-# u_test_val = v_test_val = w_test_val = 0.5
 u_test_val = v_test_val = w_test_val = 0.0
-# u_test_val = v_test_val = 0.5
-# water_vapor_test_val = 0.000
-mixing_ratio = 0.001 # water vapor # not if constant
-qv_val = mixing_ratio
-total_num_parcels = 10
+qv_val = 0.001
 
 # --- choose function for creating pressure ---
+# options: calc_pressure_from_sea, calc_pressure_dz_iter, calc_pressure_1m_iter
 pressure_func = 'calc_pressure_from_sea'
-# pressure_func = 'calc_pressure_dz_iter'
-# pressure_func = 'calc_pressure_1m_iter'
 # --- choose weather model ---
-# weather_model = 'basic'
+# options: basic, WeismanKlemp
 weather_model = 'WeismanKlemp'
+
+# --- choose length of run ---
+start_date = '2020-12-01 00:00:00'
+end_date =   '2020-12-06 00:00:00'
+
+
+# --- parcel initialization ---
+total_num_parcels = 10
+parc_environment_only = False
+parc_velocity_init = 1.0
+parc_velocity_prob_range = 0.0
+parc_rh = 0.99
 
 
 def main():
@@ -45,8 +50,12 @@ def main():
                     output_vars=['pressure','temperature','parcels','potential_temperature', 'qv'],
                     phys_opt_conv=4,
                     parc_total_parcels=total_num_parcels,
-                    start_date = '2020-12-01 00:00:00',
-                    end_date =   '2020-12-04 00:00:00')
+                    parc_environment_only=parc_environment_only,
+                    parc_velocity_init=parc_velocity_init,
+                    parc_velocity_prob_range=parc_velocity_prob_range,
+                    parc_rh=parc_rh,
+                    start_date = start_date,
+                    end_date = end_date)
     print("Generated icar_options.nml")
 
     tg.Topography(nz, nx, ny)
