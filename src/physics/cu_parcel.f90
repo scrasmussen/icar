@@ -369,8 +369,6 @@ contains
     ! d = v_0 * t + 1/2 * a * t^2
     z_displacement = parcel%velocity * dt + 0.5 * a_prime * dt * dt
 
-    ! print *, "------- dif", T-T_prime, "v", parcel%velocity, "a'", a_prime
-
     ! z_displacement = parcel%velocity + 0.5 * a_prime
     if (debug .eqv. .true.) then
         print*, "~287"
@@ -426,6 +424,7 @@ contains
     ! v_f = v_0 + a*t
     parcel%velocity = parcel%velocity + buoyancy * dt
 
+    ! parcel%velocity = parcel%velocity * 0.999999
 
     !-----------------------------------------------------------------
     ! Orographic lift and Wind
@@ -728,10 +727,10 @@ contains
         end if
 
     end do ! for saturated parcel iteration, iter = 1,5
-    parcel%cloud_water = parcel%cloud_water * 0.99
 
-    ! saturate = sat_mr(parcel%temperature, parcel%pressure)
-    ! RH = parcel%water_vapor / saturate
+    ! Simulation of rain, removing small amounts of cloud_water
+    ! parcel%cloud_water = parcel%cloud_water * 0.999999
+    ! RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
     ! parcel%relative_humidity = RH
     end block ! saturated parcel block
 
