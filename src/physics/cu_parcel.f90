@@ -18,6 +18,8 @@ module module_cu_parcel
   logical, parameter :: replacement = .false. ! parcel replacement
   logical, parameter :: replacement_message = .true.
   integer            :: local_buf_size
+  ! variables for reporting starting conditions
+  real               :: parcel_z, parcel_friction, parcel_precip_rate
 
 contains
   ! Start initialization of multiple parcels' physics
@@ -37,6 +39,13 @@ contains
 
       me = this_image()
       parcel_options = parcel_options_in
+      ! --- other parcel initialization options
+      parcel_z = 3.0 ! -1 if off
+      ! the following rates are applied per time step by multiplying the
+      ! appropraite variable by (1-rate), thus 0.0 turns it off
+      parcel_friction = 0.000001
+      parcel_precip_rate = 0.000001 ! per time step
+
 
       do p_i=1,parcels%image_parcel_count
           ! do p_i=1,parcels%image_num_parcels() ! NOT WORKING?
@@ -84,7 +93,8 @@ contains
     real :: parcel_rh, random_val
 
     ! REMOVE THIS, switch to parcel parameters?
-    ! parcel%z = 3
+    parcel_z = 3
+    parcel%z = parcel_z
     ! if (parcel%parcel_id .lt. 4)  parcel%z = 2
 
     ! default value if not passed by namelist
@@ -294,7 +304,7 @@ contains
     ! velocity equation: v_f = v_0 + a*t
     parcel%velocity = parcel%velocity + buoyancy * dt
 
-    ! parcel%velocity = parcel%velocity * 0.999999
+    parcel%velocity = parcel%velocity * (1 - parcel_friction)
 
     !-----------------------------------------------------------------
     ! Orographic lift and Wind
@@ -525,7 +535,8 @@ contains
     end do ! for saturated parcel iteration, iter = 1,5
 
     ! Simulation of rain, removing small amounts of cloud_water
-    ! parcel%cloud_water = parcel%cloud_water * 0.999999
+    parcel%cloud_water = parcel%cloud_water * (1 - parcel_precip_rate)
+
     ! RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
     ! parcel%relative_humidity = RH
     end block ! saturated parcel block
@@ -701,9 +712,9 @@ contains
       l_format = "(A32,L)"
       open(newunit=unit, file='init_parcel_conditions.txt')
       write(unit,*) 'Parcel Initial Conditions'
-      write(unit,i_format) 'total_parcels     ', parcel_options%total_parcels
-      write(unit,l_format) 'replace_parcel     ', parcel_options%replace_parcel
-      write(unit,l_format) 'environment_only', parcel_options%environment_only
+      write(unit,i_format) 'total_parcels   ', parcel_options%total_parcels
+      write(unit,l_format) 'replace_parcel    ', parcel_options%replace_parcel
+      write(unit,l_format) 'environment_only  ', parcel_options%environment_only
       write(unit,f_format) 'velocity_init', parcel_options%velocity_init
       write(unit,f_format) 'velocity_offset', parcel_options%velocity_offset
       write(unit,f_format) 'velocity_prob_range', parcel_options%velocity_prob_range
@@ -712,6 +723,12 @@ contains
       write(unit,f_format) 'temp_prob_range', parcel_options%temp_prob_range
       write(unit,f_format) 'rh_init', parcel_options%rh_init
       write(unit,f_format) 'rh_prob_range', parcel_options%rh_prob_range
+      write(unit,f_format) 'parcel_friction', parcel_friction
+      write(unit,f_format) 'parcel_precip_rate', parcel_precip_rate
+      if (parcel_z .ne. -1) &
+           write(unit,f_format) 'parcel_z          ', parcel_z
+
+
       close(unit)
       print *, "PARCEL OPTIONS", parcel_options
       ! stop "ARTLESS"
