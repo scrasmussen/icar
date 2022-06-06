@@ -156,6 +156,7 @@ module options_types
         integer :: total_parcels
         logical :: replace_parcel
         logical :: environment_only
+        real :: z_init
         real :: velocity_init
         real :: velocity_offset
         real :: velocity_prob_range
