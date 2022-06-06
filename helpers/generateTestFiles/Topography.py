@@ -24,7 +24,10 @@ class Topography:
 
         # initialize program variables
         nt = 1
+        if n_hills != 0:
+            print("Warning: number of hills not an options currently")
         self.n_hills = n_hills
+
         nx,ny = self.setup_class_variables(nx, ny, nt, mult_factor)
         self.setup_attributes(nx,ny)
 
