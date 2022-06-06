@@ -70,7 +70,7 @@ contains
       ! setup random number generator for parcel location
       seed = -1
       call random_seed(PUT=seed)
-      call random_init(.true.,.true.)
+      ! call random_init(.true.,.true.)
 
       do i=1,this%image_parcel_count
           call this%create_parcel_id()
@@ -123,7 +123,8 @@ contains
         x, y, z, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
-        0.0, 0.0, 0.0, 0.0)
+        0.0, 0.0, 0.0, 0.0, &
+        0.0)
     end procedure
 
 

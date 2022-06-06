@@ -1942,13 +1942,14 @@ contains
 
         integer :: total_parcels                   ! total number or air parcels
         logical :: replace_parcel, environment_only
+        real :: z_init
         real :: velocity_init, velocity_offset, velocity_prob_range
         real :: temp_init, temp_offset, temp_prob_range
         real :: rh_init, rh_prob_range
 
         ! define the namelist
         namelist /parcel_parameters/ total_parcels, replace_parcel, &
-            environment_only, &
+            environment_only, z_init, &
             velocity_init, velocity_offset, velocity_prob_range, &
             temp_init, temp_offset, temp_prob_range, &
             rh_init, rh_prob_range
@@ -1963,6 +1964,7 @@ contains
            total_parcels = 0
            replace_parcel = .false.
            environment_only = .true.
+           z_init = -9999.0
            velocity_init = -9999.0
            velocity_offset = 0.0
            velocity_prob_range = 0.0
@@ -1978,6 +1980,7 @@ contains
         parcel_options%replace_parcel = replace_parcel
         parcel_options%environment_only = environment_only
 
+        parcel_options%z_init = z_init
         parcel_options%velocity_init = velocity_init
         parcel_options%velocity_offset = velocity_offset
         parcel_options%velocity_prob_range = velocity_prob_range

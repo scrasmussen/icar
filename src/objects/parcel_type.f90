@@ -14,7 +14,7 @@ type parcel_t
     real :: pressure, temperature, potential_temp
     real :: velocity, water_vapor, cloud_water
     real :: relative_humidity
-    real :: buoyancy
+    real :: buoyancy, buoyancy_multiplier
     contains
     procedure :: move_to
     procedure :: print_parcel
@@ -61,6 +61,7 @@ contains
     print *, "cloud_water", this%cloud_water
     print *, "relative_humidity", this%relative_humidity
     print *, "buoyancy", this%buoyancy
+    print *, "buoyancy multiplier", this%buoyancy_multiplier
     print *, "------"
   end subroutine print_parcel
 
