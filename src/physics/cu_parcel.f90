@@ -19,7 +19,7 @@ module module_cu_parcel
   logical, parameter :: replacement_message = .true.
   integer            :: local_buf_size
   ! variables for reporting starting conditions
-  real               :: parcel_z, parcel_friction, parcel_precip_rate
+  real               :: parcel_friction, parcel_precip_rate
 
 contains
   ! Start initialization of multiple parcels' physics
@@ -40,11 +40,12 @@ contains
       me = this_image()
       parcel_options = parcel_options_in
       ! --- other parcel initialization options
-      parcel_z = 3.0 ! -1 if off
       ! the following rates are applied per time step by multiplying the
       ! appropraite variable by (1-rate), thus 0.0 turns it off
-      parcel_friction = 0.000001
-      parcel_precip_rate = 0.000001 ! per time step
+      ! parcel_friction = 0.000001
+      ! parcel_precip_rate = 0.000001 ! per time step
+      parcel_friction = 0.001
+      parcel_precip_rate = 0.01
 
 
       do p_i=1,parcels%image_parcel_count
@@ -93,8 +94,8 @@ contains
     real :: parcel_rh, random_val
 
     ! REMOVE THIS, switch to parcel parameters?
-    parcel_z = 3
-    parcel%z = parcel_z
+    if (parcel_options%z_init .ne. -9999.0) &
+         parcel%z = parcel_options%z_init
     ! if (parcel%parcel_id .lt. 4)  parcel%z = 2
 
     ! default value if not passed by namelist
@@ -131,6 +132,7 @@ contains
     end associate
 
     exner_val = exner_function_local(parcel%pressure)
+    parcel%potential_temp =  parcel%potential_temp + 10
     parcel%temperature = exner_val * parcel%potential_temp
     parcel%temperature = parcel%temperature
 
@@ -180,6 +182,7 @@ contains
         end if
 
         parcel%velocity = parcel%velocity + random_val * parcel_options%velocity_prob_range
+        ! parcel%velocity = parcel%velocity  * 1.5
 
         if (int(parcel_options%temp_init) .ne. -9999) &
             parcel%temperature = parcel_options%temp_init
@@ -196,8 +199,12 @@ contains
 
         if (parcel_options%rh_init .ne. -1.0) &
              parcel_rh = parcel_options%rh_init
-    end if
 
+        call random_number(random_val)
+        parcel%buoyancy_multiplier = 10 * random_val
+     end if
+    ! print *, "velocity init = ", parcel%velocity
+    ! stop "TEST"
     parcel%relative_humidity = parcel_rh
   end subroutine init_parcel_physics
 
@@ -205,12 +212,12 @@ contains
   subroutine cu_parcel_physics(this, grid, & !nx_global, ny_global, &
       z_interface, z_m, temperature, potential_temp, &
       pressure, u_in, v_in, w_in, &
-      dt, dz, dx_val, water_vapor, cloud_water_mass, timestep)
+      dt, dz, dx_val, water_vapor, cloud_water_mass, rain_mass, timestep)
     implicit none
     class(exchangeable_parcel), intent(inout) :: this
     type(grid_t), intent(in) :: grid
     type(variable_t), intent(in) :: temperature, pressure, z_interface, z_m
-    class(exchangeable_t), intent(in) :: potential_temp, water_vapor, cloud_water_mass
+    class(exchangeable_t), intent(in) :: potential_temp, water_vapor, cloud_water_mass, rain_mass
     class(exchangeable_t), intent(in):: u_in, v_in, w_in
     type(variable_t), intent(in) :: dz
     real, intent(in)    :: dx_val, dt
@@ -280,6 +287,8 @@ contains
     end associate
 
     buoyancy = (T - T_prime) / T_prime
+    buoyancy = buoyancy * parcel%buoyancy_multiplier
+    ! buoyancy = buoyancy * 2.0
     parcel%buoyancy = buoyancy
     a_prime = buoyancy * gravity ! Acceleration
     z_displacement = parcel%velocity * dt + 0.5 * a_prime * dt * dt
@@ -535,6 +544,9 @@ contains
     end do ! for saturated parcel iteration, iter = 1,5
 
     ! Simulation of rain, removing small amounts of cloud_water
+    rain_mass%data_3d(floor(parcel%x),floor(parcel%z), floor(parcel%y)) = &
+         rain_mass%data_3d(floor(parcel%x),floor(parcel%z), floor(parcel%y)) &
+         + parcel%cloud_water * parcel_precip_rate
     parcel%cloud_water = parcel%cloud_water * (1 - parcel_precip_rate)
 
     ! RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
@@ -707,7 +719,7 @@ contains
   subroutine write_parcel_init_conditions()
       integer :: unit
       character(len=:), allocatable :: f_format, i_format, l_format
-      f_format = "(A32,F12.4)"
+      f_format = "(A32,F12.6)"
       i_format = "(A32,I12)"
       l_format = "(A32,L)"
       open(newunit=unit, file='init_parcel_conditions.txt')
@@ -715,6 +727,7 @@ contains
       write(unit,i_format) 'total_parcels   ', parcel_options%total_parcels
       write(unit,l_format) 'replace_parcel    ', parcel_options%replace_parcel
       write(unit,l_format) 'environment_only  ', parcel_options%environment_only
+      write(unit,f_format) 'z_init', parcel_options%z_init
       write(unit,f_format) 'velocity_init', parcel_options%velocity_init
       write(unit,f_format) 'velocity_offset', parcel_options%velocity_offset
       write(unit,f_format) 'velocity_prob_range', parcel_options%velocity_prob_range
@@ -725,9 +738,6 @@ contains
       write(unit,f_format) 'rh_prob_range', parcel_options%rh_prob_range
       write(unit,f_format) 'parcel_friction', parcel_friction
       write(unit,f_format) 'parcel_precip_rate', parcel_precip_rate
-      if (parcel_z .ne. -1) &
-           write(unit,f_format) 'parcel_z          ', parcel_z
-
 
       close(unit)
       print *, "PARCEL OPTIONS", parcel_options

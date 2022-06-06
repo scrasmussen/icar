@@ -151,7 +151,8 @@ subroutine convect(domain,options,dt_in)
             domain%temperature, domain%potential_temperature, domain%pressure, &
             domain%u, domain%v, domain%w, &
             ! dt_in, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass)
-            1., domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass)
+            1., domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
+            domain%rain_mass)
             ! TODO: TIMESTEP
         return
     end if
