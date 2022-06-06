@@ -476,8 +476,9 @@ contains
                          var%data_parcels(1:num_p)%water_vapor, &
                          var%data_parcels(1:num_p)%cloud_water, &
                          var%data_parcels(1:num_p)%relative_humidity, &
-                         var%data_parcels(1:num_p)%buoyancy &
-                         ], [num_p,18])) &
+                         var%data_parcels(1:num_p)%buoyancy, &
+                         var%data_parcels(1:num_p)%buoyancy_multiplier &
+                         ], [num_p,19])) &
                          , start_two_D_t), &
                          "saving:"//trim(var%name) )
                 endif
