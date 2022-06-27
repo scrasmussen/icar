@@ -114,7 +114,7 @@ contains
                       kVARS%water_vapor, kVARS%cloud_water,             kVARS%rain_in_air,  kVARS%rain_number_concentration, &
                       kVARS%snow_in_air, kVARS%cloud_ice,               kVARS%w,            kVARS%ice_number_concentration,      &
                       kVARS%snowfall,    kVARS%precipitation,           kVARS%graupel,      kVARS%graupel_in_air,     &
-                      kVARS%dz, kVARS%re_cloud, kVARS%re_ice, kVARS%re_snow ])
+                      kVARS%dz ])
 
         ! List the variables that are required to be advected for the simple microphysics
         call options%advect_vars( &
@@ -128,9 +128,8 @@ contains
                         kVARS%cloud_water,  kVARS%rain_in_air,              kVARS%snow_in_air,   &
                         kVARS%precipitation,kVARS%snowfall,                 kVARS%graupel,       &
                         kVARS%dz,           kVARS%snow_in_air,              kVARS%cloud_ice,     &
-                        kVARS%rain_number_concentration, kVARS%rain_in_air,                      &
-                        kVARS%ice_number_concentration,  kVARS%graupel_in_air,                   &
-                        kVARS%re_cloud, kVARS%re_ice, kVARS%re_snow  ] )
+                        kVARS%rain_number_concentration, kVARS%rain_in_air,  &
+                        kVARS%ice_number_concentration,  kVARS%graupel_in_air ] )
 
 
     end subroutine
@@ -142,9 +141,10 @@ contains
         ! List the variables that are required to be allocated for the simple microphysics
         call options%alloc_vars( &
                      [kVARS%pressure,    kVARS%potential_temperature,   kVARS%exner,        kVARS%density,      &
-                      kVARS%water_vapor, kVARS%cloud_water,             kVARS%rain_in_air,                      &
-                      kVARS%snow_in_air, kVARS%cloud_ice,               kVARS%dz,                               &
-                      kVARS%snowfall,    kVARS%precipitation,           kVARS%graupel,      kVARS%graupel_in_air ])
+                      kVARS%water_vapor, kVARS%cloud_water,             kVARS%rain_in_air,  &
+                      kVARS%snow_in_air, kVARS%cloud_ice,               kVARS%w,            &
+                      kVARS%snowfall,    kVARS%precipitation,           kVARS%graupel,      kVARS%graupel_in_air,     &
+                      kVARS%dz ])
 
         ! List the variables that are required to be advected for the simple microphysics
         call options%advect_vars( &
@@ -179,15 +179,8 @@ contains
 
         elseif (options%physics%microphysics==kMP_MORRISON) then
             stop "Morrison physics not re-implemented yet"
-        
         elseif (options%physics%microphysics==kMP_WSM6) then
             call mp_wsm6_var_request(options)
-        
-        ! For the ideal test case(s), we need to be able to advect qv, without initializing microphysics:
-        elseif (options%parameters%ideal) then
-                if (this_image()==1) write(*,*) "    allocating water vapor for ideal test case."
-                call options%alloc_vars( [kVARS%water_vapor] )    
-                call options%advect_vars( [kVARS%water_vapor] )    
         endif
 
     end subroutine mp_var_request

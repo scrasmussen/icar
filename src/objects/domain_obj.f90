@@ -900,9 +900,9 @@ contains
         class(domain_t), intent(inout)  :: this
         type(options_t), intent(in)     :: options
 
-        real, allocatable :: temp(:,:,:), gamma_n(:)
+        real, allocatable :: temp(:,:,:)
         integer :: i, max_level
-        real :: s, n, s1, s2, gamma, gamma_min
+        real :: s, n, s1, s2, gamma
         logical :: SLEVE
 
         associate(ims => this%ims,      ime => this%ime,                        &
@@ -936,18 +936,17 @@ contains
             zr_u                  => this%zr_u,                           &
             zr_v                  => this%zr_v)
 
-
+            ! Still not 100% convinced this works well in cases other than flat_z_height = 0 (w sleve). So for now best to keep at 0 when using sleve?
             max_level = find_flat_model_level(options, nz, dz)
 
-            ! Still not 100% convinced this works well in cases other than flat_z_height = 0 (w sleve). So for now best to keep at 0 when using sleve?
-            ! if(max_level /= nz) then
-            !     if (this_image()==1) then
-            !         print*, "    flat z height ", options%parameters%flat_z_height
-            !         print*, "    flat z height set to 0 to comply with SLEVE coordinate calculation "
-            !         print*, "    flat z height now", nz
-            !     end if
-            !     max_level = nz
-            ! end if
+            if(max_level /= nz) then
+                if (this_image()==1) then
+                    print*, "    flat z height ", options%parameters%flat_z_height
+                    print*, "    flat z height set to 0 to comply with SLEVE coordinate calculation "
+                    print*, "    flat z height now", nz
+                end if
+                max_level = nz
+            end if
 
             smooth_height = sum(dz(1:max_level)) !sum(global_terrain) / size(global_terrain) + sum(dz(1:max_level))
 
@@ -962,37 +961,9 @@ contains
 
 
             ! - - -   calculate invertibility parameter gamma (Schär et al 2002 eqn 20):  - - - - - -
-            gamma  =  1  -  MAXVAL(h1)/s1 * COSH(smooth_height/s1)/SINH(smooth_height/s1) &
-                          - MAXVAL(h2)/s2 * COSH(smooth_height/s2)/SINH(smooth_height/s2)
+            gamma  =  1  -  MAXVAL(h1)/s1 * COSH(smooth_height/s1)/SINH(smooth_height/s1) - MAXVAL(h2)/s2 * COSH(smooth_height/s2)/SINH(smooth_height/s2)
 
-            ! with the new (leuenberger et al 2010) Sleve formulation, the inveribiltiy criterion is as follows:
-            ! ( Although an argument could be made to calculate this on the offset (u/v) grid b/c that is most
-            !   relevant for advection? In reality this is probably a sufficient approximation, as long as we
-            !   aren't pushing the gamma factor too close to zero )
-            allocate(gamma_n(this%kds : this%kde+1))
-            i=kms
-            gamma_n(i) =  1                                                     &
-                - MAXVAL(h1) * n/(s1**n)                                        &
-                * COSH((smooth_height/s1)**n) / SINH((smooth_height/s1)**n)     &
-                - MAXVAL(h2) * n/(s2**n)                                        &
-                * COSH((smooth_height/s2)**n) / SINH((smooth_height/s2)**n)
-
-            do i = this%grid%kds, this%grid%kde
-                gamma_n(i+1)  =  1                                    &    ! # for i != kds !!
-                - MAXVAL(h1) * n/(s1**n) * sum(dz_scl(1:i))**(n-1)                                             &
-                * COSH((smooth_height/s1)**n -(sum(dz_scl(1:i))/s1)**n ) / SINH((smooth_height/s1)**n)    &
-                - MAXVAL(h2) * n/(s2**n) *  sum(dz_scl(1:i))**(n-1)                                            &
-                * COSH((smooth_height/s2)**n -(sum(dz_scl(1:i))/s2)**n ) / SINH((smooth_height/s2)**n)
-            enddo
-
-            if (n==1) then
-                gamma_min = gamma
-            else
-                gamma_min = MINVAL(gamma_n)
-            endif
-
-
-            ! For reference: COSMO1 operational setting (but model top is at ~22000 masl):
+            ! COSMO1 operational setting (but model top is at ~22000 masl):
             !    Decay Rate for Large-Scale Topography: svc1 = 10000.0000
             !    Decay Rate for Small-Scale Topography: svc2 =  3300.0000
             if ((this_image()==1)) then
@@ -1000,9 +971,8 @@ contains
                 print*, "    Using a SLEVE coordinate with a Decay height for Small-Scale Topography: (s2) of ", s2, " m."
                 print*, "    Using a sleve_n of ", options%parameters%sleve_n
                 write(*,*) "    Smooth height is ", smooth_height, "m.a.s.l     (model top ", sum(dz(1:nz)), "m.a.s.l.)"
-                write(*,*) "    invertibility parameter gamma is: ", gamma_min
-                if(gamma_min <= 0) print*, " CAUTION: coordinate transformation is not invertible (gamma <= 0 ) !!! reduce decay rate(s), and/or increase flat_z_height!"
-                ! if(options%parameters%debug)  write(*,*) "   (for (debugging) reference: 'gamma(n=1)'= ", gamma,")"
+                write(*,*) "    invertibility parameter gamma is: ", gamma
+                if(gamma <= 0) print*, " CAUTION: coordinate transformation is not invertible (gamma <= 0 ) !!! reduce decay rate(s)!"
                 print*, ""
             endif
 
@@ -1083,12 +1053,11 @@ contains
                         print*, dz_interface(:,i,:)
                         print*,""
                     endif
-                    else if ( ANY(global_dz_interface(:,i,:)<=0.01) ) then
+                    else if ( ANY(dz_interface(:,i,:)<=0.01) ) then
                     if (this_image()==1)  write(*,*) "WARNING: dz_interface very low (at level ",i,")"
                     endif
 
                     ! - - - - -   u/v grid calculations - - - - -
-                    ! contrary to the calculations above, these all take place on the parallelized terrain
                     z_u(:,i,:)   = (sum(dz_scl(1:(i-1))) + dz_scl(i)/2)   &
                                 + h1_u  *  SINH( (smooth_height/s1)**n -  ( (sum(dz_scl(1:(i-1)))+dz_scl(i)/2) /s1)**n ) / SINH((smooth_height/s1)**n)  &! large-scale terrain
                                 + h2_u  *  SINH( (smooth_height/s2)**n -  ( (sum(dz_scl(1:(i-1)))+dz_scl(i)/2) /s2)**n ) / SINH((smooth_height/s2)**n)   ! small terrain features
@@ -1121,12 +1090,6 @@ contains
                 global_jacobian(:,i,:) = global_dz_interface(:,i,:)/dz_scl(i)
 
             enddo
-
-
-            if ((this_image()==1).and.(options%parameters%debug)) then
-                call io_write("global_jacobian.nc", "global_jacobian", global_jacobian(:,:,:) )
-                write(*,*) "  global jacobian minmax: ", MINVAL(global_jacobian) , MAXVAL(global_jacobian)
-            endif
 
         end associate
 
@@ -1281,18 +1244,10 @@ contains
             call setup_sleve(this, options)
 
         else
-            ! This will set up either a Gal-Chen terrainfollowing coordinate, or no terrain following.
+
             call setup_simple_z(this, options)
 
         endif
-
-        !! To allow for development and debugging of coordinate transformations:
-        ! if ((this_image()==1).and.(options%parameters%debug)) then
-        !     ! call io_write("global_jacobian.nc", "global_jacobian", this%global_jacobian(:,:,:) )
-        !     write(*,*) "    global jacobian minmax: ", MINVAL(this%global_jacobian) , MAXVAL(this%global_jacobian)
-        !     write(*,*) ""
-        ! endif
-
 
         associate(ims => this%ims,      ime => this%ime,                        &
                   jms => this%jms,      jme => this%jme,                        &
@@ -1660,14 +1615,12 @@ contains
                            temporary_data)
             if (associated(this%soil_deep_temperature%data_2d)) then
                 this%soil_deep_temperature%data_2d = temporary_data(this%grid%ims:this%grid%ime, this%grid%jms:this%grid%jme)
-
-                if (minval(temporary_data)< 200) then
-                    if (this_image()==1) print*, "WARNING, VERY COLD SOIL TEMPERATURES SPECIFIED:", minval(temporary_data)
-                    if (this_image()==1) print*, trim(options%parameters%init_conditions_file),"  ",trim(options%parameters%soil_deept_var)
-                endif
-                if (minval(this%soil_deep_temperature%data_2d)< 200) then
-                    where(this%soil_deep_temperature%data_2d<200) this%soil_deep_temperature%data_2d=280 ! <200 is just broken, set to mean annual air temperature at mid-latidudes
-                endif
+            endif
+            if (minval(temporary_data)< 200) then
+                if (this_image()==1) print*, "WARNING, VERY COLD SOIL TEMPERATURES SPECIFIED:", minval(temporary_data)
+            endif
+            if (minval(this%soil_deep_temperature%data_2d)< 200) then
+                where(this%soil_deep_temperature%data_2d<200) this%soil_deep_temperature%data_2d=280 ! <200 is just broken, set to mean annual air temperature at mid-latidudes
             endif
         else
             if (associated(this%soil_deep_temperature%data_2d)) then
@@ -1684,19 +1637,15 @@ contains
                     this%soil_temperature%data_3d(:,i,:) = temporary_data_3d(this%grid%ims:this%grid%ime, this%grid%jms:this%grid%jme, i)
                 enddo
                 if (options%parameters%soil_deept_var == "") then
-                    if (associated(this%soil_deep_temperature%data_2d)) then
-                        this%soil_deep_temperature%data_2d = this%soil_temperature%data_3d(:,nsoil,:)
-                    endif
+                    this%soil_deep_temperature%data_2d = this%soil_temperature%data_3d(:,nsoil,:)
                 endif
             endif
 
         else
             if (associated(this%soil_temperature%data_3d)) then
-                if (associated(this%soil_deep_temperature%data_2d)) then
-                    do i=1,nsoil
-                        this%soil_temperature%data_3d(:,i,:) = this%soil_deep_temperature%data_2d
-                    enddo
-                endif
+                do i=1,nsoil
+                    this%soil_temperature%data_3d(:,i,:) = this%soil_deep_temperature%data_2d
+                enddo
             endif
         endif
 
@@ -2348,11 +2297,10 @@ contains
             if (this_image()==1) print*, "    interpolating external var ", trim(varname) , " for initial conditions"
             external_var =external_conditions%variables%get_var(trim(varname))  ! the external variable
 
-            if (associated(this%snow_water_equivalent%data_2d)) then
-                call geo_interp2d(  this%snow_water_equivalent%data_2d, & ! ( this%grid2d% ids : this%grid2d% ide, this%grid2d% jds : this%grid2d% jde)   ,            &
-                                    external_var%data_2d,               &
-                                    external_conditions%geo%geolut )
-            endif
+            ! if (this_image()==1) print*, "shape swe var: ",(shape(this%snow_water_equivalent%data_2d))
+            call geo_interp2d(  this%snow_water_equivalent%data_2d, & ! ( this%grid2d% ids : this%grid2d% ide, this%grid2d% jds : this%grid2d% jde)   ,            &
+                                external_var%data_2d,               &
+                                external_conditions%geo%geolut )
 
           endif
 
@@ -2364,11 +2312,9 @@ contains
             if (this_image()==1) print*, "    interpolating external var ", trim(varname) , " for initial conditions"
             external_var =external_conditions%variables%get_var(trim(varname))  ! the external variable
 
-            if (associated(this%snow_height%data_2d)) then
-                call geo_interp2d(  this%snow_height%data_2d, & ! ( this%grid2d% ids : this%grid2d% ide, this%grid2d% jds : this%grid2d% jde)   ,            &
-                                    external_var%data_2d,               &
-                                    external_conditions%geo%geolut )
-            endif
+            call geo_interp2d(  this%snow_height%data_2d, & ! ( this%grid2d% ids : this%grid2d% ide, this%grid2d% jds : this%grid2d% jde)   ,            &
+                                external_var%data_2d,               &
+                                external_conditions%geo%geolut )
           ! -------  external snow height from external swe and density  -----------------
           elseif (options%parameters%swe_ext/="" .AND. options%parameters%rho_snow_ext/="") then
 
@@ -2377,11 +2323,10 @@ contains
             if (this_image()==1) print*, "    interpolating external var ", trim(varname) , " to calculate initial snow height"
             external_var =external_conditions%variables%get_var(trim(varname))  ! the external variable
             external_var2 =external_conditions%variables%get_var(trim(options%parameters%swe_ext))  ! the external swe
-            if (associated(this%snow_height%data_2d)) then
-                call geo_interp2d(  this%snow_height%data_2d, &
-                                    external_var2%data_2d / external_var%data_2d,               &  ! ext_swe / rho_snow_swe = hsnow_ext
-                                    external_conditions%geo%geolut )
-            endif
+
+            call geo_interp2d(  this%snow_height%data_2d, &
+                                external_var2%data_2d / external_var%data_2d,               &  ! ext_swe / rho_snow_swe = hsnow_ext
+                                external_conditions%geo%geolut )
           endif
 
           ! ------ soil temperature  (2D or 3D)_______________________
@@ -2392,17 +2337,13 @@ contains
             if (this_image()==1) print*, "    interpolating external var ", trim(varname) , " for initial conditions"
             external_var =external_conditions%variables%get_var(trim(varname))  ! the external variable
 
-            if (associated(this%soil_deep_temperature%data_2d)) then
-
-                call geo_interp2d(  this%soil_deep_temperature%data_2d, &
-                                    external_var%data_2d,               &
-                                    external_conditions%geo%geolut )
-                if (associated(this%soil_temperature%data_3d)) then
-                    do i=1,nsoil
-                        this%soil_temperature%data_3d(:,i,:) = this%soil_deep_temperature%data_2d
-                    enddo
-                endif
-            endif
+            call geo_interp2d(  this%soil_deep_temperature%data_2d, &
+                                external_var%data_2d,               &
+                                external_conditions%geo%geolut )
+            do i=1,nsoil
+                this%soil_temperature%data_3d(:,i,:) = this%soil_deep_temperature%data_2d
+                ! if (this_image()==1) write(*,*) "  max soil_temperature in layer",i," on init: ", maxval(this%soil_temperature%data_3d(:,i,:))
+            enddo
 
           elseif (options%parameters%tsoil3D_ext/="") then  ! if 3D soil is provided we take the lowest level only. (can/should be expanded later)
 
@@ -2411,16 +2352,14 @@ contains
             if (this_image()==1) print*, "    interpolating external var ", trim(varname) , " for initial conditions"
             external_var =external_conditions%variables%get_var(trim(varname))  ! the external variable
 
-            if (associated(this%soil_deep_temperature%data_2d)) then
-                call geo_interp2d(  this%soil_deep_temperature%data_2d, &
-                                    external_var%data_3d(:,size(external_var%data_3d,2),:)  ,               &
-                                    external_conditions%geo%geolut )
-                if (associated(this%soil_temperature%data_3d)) then
-                    do i=1,nsoil
-                        this%soil_temperature%data_3d(:,i,:) = this%soil_deep_temperature%data_2d
-                    enddo
-                endif
-            endif
+            call geo_interp2d(  this%soil_deep_temperature%data_2d, &
+                                external_var%data_3d(:,size(external_var%data_3d,2),:)  ,               &
+                                external_conditions%geo%geolut )
+            do i=1,nsoil
+                this%soil_temperature%data_3d(:,i,:) = this%soil_deep_temperature%data_2d
+                ! if (this_image()==1) write(*,*) "  max soil_temperature in layer",i," on init: ", maxval(this%soil_temperature%data_3d(:,i,:))
+            enddo
+
           endif
         endif
     end subroutine
