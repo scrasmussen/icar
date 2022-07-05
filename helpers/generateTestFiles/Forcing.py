@@ -1,8 +1,8 @@
 import datetime
-import pandas as pd
-import numpy as np
-import xarray as xr
 import math
+import numpy as np
+import pandas as pd
+import xarray as xr
 
 # Create NetCDF file containing the forcing data
 class Forcing:
@@ -10,9 +10,9 @@ class Forcing:
     attributes = {"history": "Dec 01 00:00:00 2020"}
 
 
-    def __init__(self,nt=10, nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
+    def __init__(self, nt=10, nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
                  u_val=0.5, v_val=0.5, w_val=0.0,
-                 water_vapor_val=0.001, theta_val=300.0, 
+                 water_vapor_val=0.001, theta_val=300.0,
                  height_value=500, dx=10, dy=10, dz_value=500.0,
                  qv_val=0.1, weather_model='basic',
                  pressure_func='calc_pressure_from_sea',
@@ -29,23 +29,21 @@ class Forcing:
         # center around lat0, lon0 (i.s.o. corner), so we can align with hi-res grid.
         lon_flat = np.arange(lon0-(nx/2*dx/111111/np.cos(np.radians(lat0))),
                     lon0+(nx/2*dx/111111/np.cos(np.radians(lat0))),
-                    dx/111111/np.cos(np.radians(lat0)) 
+                    dx/111111/np.cos(np.radians(lat0))
                    )[:nx]
         lat_flat = np.arange(lat0-(ny/2*dy/111111),
                             lat0+(ny/2*dy/111111),
                             dy/111111
                         )[:ny]
-
         x_m = np.arange(-nx*dx/2,nx*dx/2, dx)
 
 
-        print( "   forcing lon/lat min/max:  ", np.min(lon_flat), np.max(lon_flat), np.min(lat_flat), np.max(lat_flat) )                                  
-        # print(" forcing lat min/max: ", np.amin(lat_flat), np.amax(lat_flat))
-        # lon_flat, lat_flat = np.meshgrid(lon_tmp, lat_tmp)
+        print( "   forcing lon/lat min/max:  ", np.min(lon_flat),
+               np.max(lon_flat), np.min(lat_flat), np.max(lat_flat) )
 
         self.define_data_variables(nt, nz, nx, ny, height_value, lat_flat,
                                    lon_flat, dz_value, theta_val, u_val,
-                                   v_val, qv_val, weather_model, pressure_func, 
+                                   v_val, qv_val, weather_model, pressure_func,
                                    hill_height, Schaer_test, dx, x_m)
 
         # define time
@@ -132,19 +130,19 @@ class Forcing:
                               lon_flat, dz_value, theta_val, u_val, v_val,
                               qv_val, weather_model, pressure_func, hill_height,
                               Schaer_test, dx, x_m):
-        
+
         # --- u variable
         # if advection test is selected, set the appropriate windfield:
         if Schaer_test==True:
             z1 = 4000. ; z2 = 5000. ; hill_height = 3000.0  ; u0=10
             u_val = np.array( [0]* int(z1/dz_value)
-                + [u0* (np.sin(np.pi/2*(z1/dz_value+1 - z1/dz_value) / ((z2-z1)/dz_value) ))**2 ]   
+                + [u0* (np.sin(np.pi/2*(z1/dz_value+1 - z1/dz_value) / ((z2-z1)/dz_value) ))**2 ]
                 + [u0* (np.sin(np.pi/2*(z1/dz_value+2 - z1/dz_value) / ((z2-z1)/dz_value) ))**2 ]
                 + [u0] * nz #int(nz-z2/dz_value)
             )
             u_array=np.tile(u_val[:nz], (nt,nx,ny,1) )
             u_array = np.transpose(u_array,(0,3,2,1) )  # order?
-            
+
         # if uval is given as a single float, make a uniform windfield:
         elif isinstance(u_val, float):
             u_array= np.full([nt, nz, ny, nx], u_val[:nz])
@@ -154,7 +152,7 @@ class Forcing:
             u_array = np.transpose(u_array,(0,3,2,1) )
             # print(U.shape)
             print("   Treating u_test_val as a u field in z-direction")
-        
+
         self.u = xr.Variable(self.dims4d,
                              u_array,
                              {'long_name':'U (E/W) wind speed', 'units':"m s**-1"})
@@ -212,7 +210,6 @@ class Forcing:
                                 'units':'meters'}
                                 )
 
-
         # --- potential temperature variable
         self.set_theta(theta_val, weather_model)
 
@@ -224,14 +221,14 @@ class Forcing:
 
         # --- qv variable
         if Schaer_test==True:
-            # create a small blob of moisture, in an otherwise dry environment. Values from Schaer et al 2002            
-            qv_arr = np.zeros([nt,nz,ny,nx])            
-            z0 = int(9000/dz_value) 
-            x0 = int(-50000/dx + nx/2)  # -50km 
+            # create a small blob of moisture, in an otherwise dry environment. Values from Schaer et al 2002
+            qv_arr = np.zeros([nt,nz,ny,nx])
+            z0 = int(9000/dz_value)
+            x0 = int(-50000/dx + nx/2)  # -50km
             Ax = int(25000/dx)
             Az = int(3000/dz_value)
             print("   setting up advection test with a cloud of qv with half-width ",Ax,"km")
-            if x0-Ax<0: 
+            if x0-Ax<0:
                 print("   QV blob outside forcing domain; increase nx_lo and or dx_lo (currently",nx, " and ", dx)
                 print("   x0-Ax=", x0-Ax)
             for r in np.arange(1,0,-0.05):
@@ -244,7 +241,7 @@ class Forcing:
             print("   qv_arr min: ",np.amin(qv_arr), "  max:", np.amax(qv_arr))
 
         else:  # homogenous qv throughout domain
-            qv_arr = np.full([nt,nz,ny,nx], qv_val)            
+            qv_arr = np.full([nt,nz,ny,nx], qv_val)
 
         self.qv = xr.Variable(self.dims4d,
                             #   np.full([nt, nz, nx, ny], ),
@@ -299,7 +296,7 @@ class Forcing:
         else:
              print("Error: ", pressure_model, " is not defined")
              exit()
-        # print("NX NY", self.nx, self.ny)
+
         for t in range(self.nt):
             for i in range(self.nx):
                 for j in range(self.ny):
@@ -332,6 +329,14 @@ class Forcing:
 #---
 # Lambda like functions used for np.vectorize
 #---
+def calc_wk_qv(z):
+    z_tr =  12000. # m
+    if z <= z_tr:
+        qv = 1 - (3./4.) * (z / z_tr) ** (5./4.)
+    else:
+        qv = 0.25
+    return qv
+
 # Weisman Klemp Theta equation
 # z is elevation in meters
 def calc_wk_theta(z):

@@ -4,7 +4,7 @@ from netCDF4 import Dataset
 import numpy as np
 from sys import exit, path
 from os import getcwd
-path.insert(0, getcwd()+'/../helpers/genNetCDF')
+path.insert(0, getcwd()+'/../helpers/generateTestFiles')
 import Topography as tg
 import Forcing as fc
 import ICARoptions as opt
@@ -14,7 +14,8 @@ import ICARoptions as opt
 # ---------------------------------------
 # choose dimensions of hi-res grid:
 nz = 80
-nx = ny = 100
+nx = 300
+ny = 20
 dx=dy=1000
 
 dz_levels= [50., 75., 125., 200., 300., 400.] + [500.] * 50
@@ -35,17 +36,17 @@ if Schaer_test==True:
     # Values below are as specified in Schaer et al 2002.
     dx = dy = 1000                # 1000 m
     nx = 300; ny = 20             # 300 m, ..m ?
-    nz = 25                       # 50 m
+    nz = 50                       # 50 m
     dz_levels = [500]*nz          # 500 m , model top at 25 km
     decay_rate_L_topo = 1.6667    # s1 = 15 km
-    decay_rate_S_topo = 10.0      # s2 = 2.5 km
+    decay_rate_S_topo = 13.0      # s2 = 2.5 km
     hill_height       = 3000.0    # height of the ideal hill(s) [m]
 
 
 
 # ---- Forcing specs  -----
-nt_lo         = 12 # nr of timesteps (hours) - this is also how long the ideal sim will run.
-nz_lo         = 30
+nt_lo         = 4 # nr of timesteps (hours) - this is also how long the ideal sim will run.
+nz_lo         = 51
 nx_lo = 300; ny_lo = 20
 dx_lo = dy_lo = 1000     # make sure dx_lo*nx_lo => dx*nx & dy_lo*ny_lo => dy*ny
 dz_lo         = 500.0    # thickness of each (Forcing?) model gridcell   [m]

@@ -62,9 +62,9 @@ class ICARoptions:
                  z_is_on_interface = 'False',
                  t_is_potential = 'True',
                  time_varying_z = 'False',
-                 ideal='True',
-                 debug='True',        # currently this writes the global jacobian to a netcdf file, and gives min/max values of the jacobian on runtime.  
                  smooth_wind_distance = '72000',
+                 ideal='True',
+                 debug='True',        # currently this writes the global jacobian to a netcdf file, and gives min/max values of the jacobian on runtime.
                  use_agl_height = True,   #  Use height above ground level to interpolate the wind field instead of height above sea level.
                  agl_cap = 400,  #   Height at which we switch from AGL-interpolation to using ASL-interpolation
                  # parcels namelist
@@ -108,8 +108,7 @@ class ICARoptions:
                                      terrain_smooth_cycles = terrain_smooth_cycles ,
                                      decay_rate_L_topo = decay_rate_L_topo,
                                      decay_rate_S_topo = decay_rate_S_topo,
-                                     sleve_n = sleve_n
-                                    )
+                                     sleve_n = sleve_n)
 
         self.forcing_var_list = ForcingVarList(filename=f,
                                                uvar=forc_u_var,

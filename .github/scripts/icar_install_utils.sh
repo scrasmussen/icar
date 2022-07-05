@@ -148,7 +148,7 @@ function gen_test_run_data {
 function execute_test_run {
     cp ${GITHUB_WORKSPACE}/src/icar ${GITHUB_WORKSPACE}/tests/
     cd ${GITHUB_WORKSPACE}/tests
-    ./icar icar_options.nm
+    ./icar icar_options.nml
 }
 
 function icar_after_success {
