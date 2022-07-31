@@ -15,7 +15,6 @@ module module_cu_parcel
   logical  :: debug = .false.
   type(parcel_options_type) :: parcel_options
   logical, parameter :: brunt_vaisala_data = .false.
-  logical, parameter :: replacement = .false. ! parcel replacement
   logical, parameter :: replacement_message = .true.
   integer            :: local_buf_size
   ! variables for reporting starting conditions
@@ -47,7 +46,6 @@ contains
       parcel_friction = 0.001
       parcel_precip_rate = 0.01
 
-
       do p_i=1,parcels%image_parcel_count
           ! do p_i=1,parcels%image_num_parcels() ! NOT WORKING?
           if (parcels%local(p_i)%exists .eqv. .TRUE.) then
@@ -67,10 +65,10 @@ contains
       w_in, dz_val, water_vapor, cloud_water_mass, &
       input_buf_size, halo_width)
       class(parcel_t), intent(inout) :: parcel
-      class(exchangeable_t), intent(in)    :: potential_temp, u_in, v_in, w_in
-      type(grid_t), intent(in)      :: grid
-      type(variable_t), intent(in)  :: z_m, pressure, z_interface, dz_val
-      type(exchangeable_t), intent(in)  :: water_vapor, cloud_water_mass
+      class(exchangeable_t), intent(in) :: potential_temp, u_in, v_in, w_in
+      type(grid_t), intent(in) :: grid
+      type(variable_t), intent(in) :: z_m, pressure, z_interface, dz_val
+      type(exchangeable_t), intent(in) :: water_vapor, cloud_water_mass
       integer, intent(in), optional :: input_buf_size, halo_width
       integer :: me
       me = this_image()
@@ -217,7 +215,8 @@ contains
     class(exchangeable_parcel), intent(inout) :: this
     type(grid_t), intent(in) :: grid
     type(variable_t), intent(in) :: temperature, pressure, z_interface, z_m
-    class(exchangeable_t), intent(in) :: potential_temp, water_vapor, cloud_water_mass, rain_mass
+    class(exchangeable_t), intent(in) :: potential_temp, water_vapor, rain_mass
+    class(exchangeable_t), intent(inout) :: cloud_water_mass
     class(exchangeable_t), intent(in):: u_in, v_in, w_in
     type(variable_t), intent(in) :: dz
     real, intent(in)    :: dx_val, dt
@@ -244,16 +243,25 @@ contains
     bv_i = 1
     bv = 0
     parcel_id = 0
+    print* ,"DT = ", dt
 
+    ! Iterate through parcels
     do i=1,ubound(this%local,1)
-        associate (parcel=>this%local(i))
+       associate (parcel=>this%local(i))
+        !  parcel = create_empty_parcel(parcel%parcel_id, grid)
+        ! if (parcel_options%replace_parcel) then
+        !     call cu_parcel_init(parcel, grid, &
+        !         z_interface, z_m, potential_temp, pressure, &
+        !         u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+        !  else
+
     if (parcel%exists .eqv. .true.) then
         call this%parcel_bounds_check(parcel, grid)
     else
         cycle
     end if
 
-    parcel%lifetime = parcel%lifetime + 1
+    parcel%lifetime = parcel%lifetime + dt
     if (debug .eqv. .true.) then
         delta_z = -999
         print*, "~249"
@@ -275,7 +283,8 @@ contains
     ! v = u + a * t
     ! s = u*t + 1/2 a*t^2
     !-----------------------------------------------------------------
-    ! properites of environment are prime
+    ! Note: properites of environment are prime
+    !-----------------------------------------------------------------
     T = parcel%temperature
     x = parcel%x; z = parcel%z; y = parcel%y
     x0 = floor(x); z0 = floor(z); y0 = floor(y);
@@ -344,15 +353,44 @@ contains
     wind_correction = (dt*1.0 / (dz_val ))
     ! parcel%z = parcel%z + (parcel%w * wind_correction)
     wind_correction = (dt*1.0 / (dx_val ))
-    if (me .eq. 1 .and. parcel%parcel_id .eq. 0 .and. parcel%lifetime .eq. 0) &
-         print *, "add back x and y and z-wind"
-    ! parcel%x = parcel%x + (parcel%u * wind_correction)
-    ! parcel%y = parcel%y + (parcel%v * wind_correction)
+    ! if (me .eq. 1 .and. parcel%parcel_id .eq. 0 .and. parcel%lifetime .eq. 0) &
+    !      print *, "add back x and y and z-wind"
+    parcel%x = parcel%x + (parcel%u * wind_correction)
+    parcel%y = parcel%y + (parcel%v * wind_correction)
+
+    ! ids,ide, jds,jde, kds,kde, & ! for the entire model domain    (d)
+
+    if ((parcel%x .lt. grid%ids) .or. &
+        (parcel%x .gt. grid%ide) .or. &
+        (parcel%y .lt. grid%jds) .or. &
+        (parcel%y .gt. grid%jde)) then
+
+        print *, "PARCEL IS OFF THE GRID: following not true"
+        print *, grid%ids, '<', parcel%x, '<', grid%ide
+        print *, grid%jds, '<', parcel%y, '<', grid%jde
+
+        ! ---- replacement code ----
+        parcel = create_empty_parcel(parcel%parcel_id, grid)
+        if (parcel_options%replace_parcel) then
+            call cu_parcel_init(parcel, grid, &
+                z_interface, z_m, potential_temp, pressure, &
+                u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+         else
+            parcel%exists = .false.
+            parcel%x = 0; parcel%z = 0; parcel%y = 0
+         end if
+        if (replacement_message .eqv. .true.) &
+             call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts, parcel_options%replace_parcel)
+        cycle
+
+    end if
+
+    ! if parcel%x .gt. grid%
 
     ! FROM MEETING NOTES: windspeed = speed / dx * dt, so added dt
     ! print *, "_____________grid nx nz ny =",  grid%nx ,grid%nz ,grid%ny
     ! if (me .eq. 1 .and. parcel%parcel_id .eq. 0) then
-    ! print *,me, ":", parcel%parcel_id,"xzy", parcel%x, parcel%z, parcel%y
+    !    print *,me, ":", parcel%parcel_id,"xzy", parcel%x, parcel%z, parcel%y
     ! end if
 
 
@@ -360,6 +398,8 @@ contains
     x = parcel%x; z = parcel%z; y = parcel%y
     x0 = floor(x); z0 = floor(z); y0 = floor(y);
     x1 = ceiling(x); z1 = ceiling(z); y1 = ceiling(y);
+    ! print*, "xzyx0z0y0x1z1y1", x,z,y,"lbounds",lbound(z_interface%data_3d),"ubounds", ubound(z_interface%data_3d), &
+    !      "gridij", grid%ide, grid%jde, grid%ite, grid%jte
     associate (A => z_interface%data_3d)
         z_interface_val = bilinear_interpolation(x, x0, x1, y, y0, y1, &
             A(x0,1,y0), A(x0,1,y1), A(x1,1,y0), A(x1,1,y1))
@@ -376,16 +416,18 @@ contains
         print *, "PARCEL WENT OFF: Should be", grid%kts, "<", parcel%z, "<", grid%kte
         ! ---- replacement code ----
         parcel = create_empty_parcel(parcel%parcel_id, grid)
-        if (replacement .eqv. .false.) then
-            parcel%exists = .false.
-            parcel%x = 0; parcel%z = 0; parcel%y = 0
-        else
-            call cu_parcel_init(parcel, grid, &
+        if (parcel_options%replace_parcel) then
+           call cu_parcel_init(parcel, grid, &
                 z_interface, z_m, potential_temp, pressure, &
                 u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+        else
+           parcel%exists = .false.
+           parcel%x = 0; parcel%z = 0; parcel%y = 0
         end if
         if (replacement_message .eqv. .true.) &
-             call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts)
+             call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts, parcel_options%replace_parcel)
+             call parcel%print_parcel()
+
         cycle
     end if
 
@@ -548,12 +590,14 @@ contains
          rain_mass%data_3d(floor(parcel%x),floor(parcel%z), floor(parcel%y)) &
          + parcel%cloud_water * parcel_precip_rate
     parcel%cloud_water = parcel%cloud_water * (1 - parcel_precip_rate)
+    ! if (parcel%parcel_id .eq. 0) &
+    !      print *, "WARNING: precip is turned off!"
 
     ! RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
     ! parcel%relative_humidity = RH
     end block ! saturated parcel block
 
-    call this%move_if_needed(parcel, grid)
+    call this%move_if_needed(parcel, grid) ! Artless this maybe not needed
 
     if (debug .eqv. .true.) then
        call parcel%print_parcel()
@@ -566,6 +610,52 @@ contains
     ! todo
     ! more indentation ! add end do statements, limit of 120
     ! add notes
+    ! ! --- wind ---
+    ! ! u: zonal velocity, wind towards the east
+    ! ! v: meridional velocity, wind towards north
+    ! ! print *, "xzy", parcel%x, parcel%z, parcel%y
+    ! wind_correction = (dt*1.0 / (dz_val ))
+    ! ! parcel%z = parcel%z + (parcel%w * wind_correction)
+    ! wind_correction = (dt*1.0 / (dx_val ))
+    ! ! if (me .eq. 1 .and. parcel%parcel_id .eq. 0 .and. parcel%lifetime .eq. 0) &
+    ! !      print *, "add back x and y and z-wind"
+    ! parcel%x = parcel%x + (parcel%u * wind_correction)
+    ! parcel%y = parcel%y + (parcel%v * wind_correction)
+    ! call this%move_if_needed(parcel, grid)
+
+    ! ! Calculate z_interface effect on displacement
+    ! x = parcel%x; z = parcel%z; y = parcel%y
+    ! x0 = floor(x); z0 = floor(z); y0 = floor(y);
+    ! x1 = ceiling(x); z1 = ceiling(z); y1 = ceiling(y);
+    ! associate (A => z_interface%data_3d)
+    !     z_interface_val = bilinear_interpolation(x, x0, x1, y, y0, y1, &
+    !         A(x0,1,y0), A(x0,1,y1), A(x1,1,y0), A(x1,1,y1))
+    ! end associate
+    ! ! Interface change from topographical change
+    ! z_wind_change = z_interface_val - parcel%z_interface  ! currently 0, debugging
+    ! parcel%z_interface = z_interface_val
+    ! z_displacement = z_displacement + z_wind_change
+
+    ! ! Move parcel, remove parcel if beyond the z axis
+    ! parcel%z_meters = parcel%z_meters + z_displacement
+
+    ! if ((parcel%z .lt. grid%kts) .or. (parcel%z .gt. grid%kte)) then
+    !     print *, "PARCEL WENT OFF: Should be", grid%kts, "<", parcel%z, "<", grid%kte
+    !     ! ---- replacement code ----
+    !     parcel = create_empty_parcel(parcel%parcel_id, grid)
+    !     if (replacement .eqv. .false.) then
+    !         parcel%exists = .false.
+    !         parcel%x = 0; parcel%z = 0; parcel%y = 0
+    !     else
+    !         call cu_parcel_init(parcel, grid, &
+    !             z_interface, z_m, potential_temp, pressure, &
+    !             u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+    !     end if
+    !     if (replacement_message .eqv. .true.) &
+    !          call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts)
+    !     cycle
+    ! end if
+
 
     if (brunt_vaisala_data .eqv. .true.) &
          call this%write_bv_data(bv, bv_i, parcel_id, timestep, local_buf_size)
@@ -699,9 +789,10 @@ contains
       temperature = exner_function_local(pressure) * potential_temp
   end subroutine dry_lapse_rate
 
-  module subroutine print_replacement_message(parcel_id, z, kts)
+  module subroutine print_replacement_message(parcel_id, z, kts, replacement)
       integer, intent(in) :: parcel_id, kts
       real, intent(in) :: z
+      logical, intent(in) :: replacement
       if (z .lt. kts) then
          write(*,'(I4AI10A)', advance='no') this_image(), ": ", parcel_id, &
               " hit the ground"
