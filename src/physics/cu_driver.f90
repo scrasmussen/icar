@@ -57,7 +57,7 @@ contains
         implicit none
         type(domain_t),  intent(inout) :: domain
         type(options_t), intent(in) :: options
-        if (options%physics%convection == 4) &
+        if (options%physics%convection == kCU_PARCEL) &
             return
 
         if (this_image()==1) write(*,*) "Initializing Cumulus Scheme"

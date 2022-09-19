@@ -44,7 +44,7 @@ contains
     module procedure init_position
       integer :: i, seed(34)
 
-      if (options%physics%convection /= 4) then
+      if (options%physics%convection /= kCU_PARCEL) then
           return
       end if
       call this%init_num_parcels(options)
