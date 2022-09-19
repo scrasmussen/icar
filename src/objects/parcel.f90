@@ -16,7 +16,6 @@ submodule(parcel_interface) parcel_implementation
     integer            :: parcels_communicated[*]
     integer            :: parcels_per_image
     integer            :: local_buf_size
-    real               :: input_wind
     logical            :: dry_air_parcels
     integer            :: total_parcels
     ! integer, parameter :: local_buf_size=4*parcels_per_image
@@ -62,15 +61,15 @@ contains
       this%east_boundary  = (grid%ximg == grid%ximages)
       this%west_boundary  = (grid%ximg == 1)
 
-      ! print *, " NEED TO FIX THIS HACK", this%image_parcel_count
       ! this%image_parcel_count = options%parcel_options%total_parcels
-      print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
-      allocate(this%local(this%image_parcel_count * 4))
+      ! print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
+      ! allocate(this%local(this%image_parcel_count * 4))
+      allocate(this%local(total_parcels+1))  ! trying to allocate larger size, todo find sweet spot
 
       ! setup random number generator for parcel location
-      seed = -1
-      call random_seed(PUT=seed)
-      ! call random_init(.true.,.true.)
+      ! seed = -1
+      ! call random_seed(PUT=seed)
+      call random_init(.true.,.true.)
 
       do i=1,this%image_parcel_count
           call this%create_parcel_id()
@@ -78,7 +77,8 @@ contains
           this%local(i) = create_empty_parcel(this%parcel_id_count, grid)
       end do
 
-      buf_size = this%image_parcel_count
+      ! buf_size = this%image_parcel_count * 4
+      buf_size = total_parcels
       allocate( this%image_np[*])
       allocate( this%buf_north_in(buf_size)[*])
       allocate( this%buf_south_in(buf_size)[*])
@@ -266,6 +266,15 @@ contains
         call this%retrieve_buf(this%buf_southeast_in)
     if (.not. this%southwest_boundary) &
         call this%retrieve_buf(this%buf_southwest_in)
+    ! For if the parcels are cycling around to opposite side of domain
+    ! call this%retrieve_buf(this%buf_north_in)
+    ! call this%retrieve_buf(this%buf_south_in)
+    ! call this%retrieve_buf(this%buf_east_in)
+    ! call this%retrieve_buf(this%buf_west_in)
+    ! call this%retrieve_buf(this%buf_northeast_in)
+    ! call this%retrieve_buf(this%buf_northwest_in)
+    ! call this%retrieve_buf(this%buf_southeast_in)
+    ! call this%retrieve_buf(this%buf_southwest_in)
 
     this%north_i = 1
     this%south_i = 1
@@ -298,6 +307,15 @@ contains
         call this%retrieve_buf(this%buf_southeast_in)
     if (.not. this%southwest_boundary) &
         call this%retrieve_buf(this%buf_southwest_in)
+    ! For if the parcels are cycling around to opposite side of domain
+    ! call this%retrieve_buf(this%buf_north_in)
+    ! call this%retrieve_buf(this%buf_south_in)
+    ! call this%retrieve_buf(this%buf_east_in)
+    ! call this%retrieve_buf(this%buf_west_in)
+    ! call this%retrieve_buf(this%buf_northeast_in)
+    ! call this%retrieve_buf(this%buf_northwest_in)
+    ! call this%retrieve_buf(this%buf_southeast_in)
+    ! call this%retrieve_buf(this%buf_southwest_in)
 
     this%north_i = 1
     this%south_i = 1
@@ -318,15 +336,18 @@ contains
       associate (parcel=>buf(i))
         do while (parcel%exists .eqv. .true.)
           if (local_i .gt. local_n) then
-            stop "retrieve_buf is out of bounds"
+             call backtrace()
+             call parcel%print_parcel()
+             stop "retrieve_buf is out of bounds"
           end if
           if (this%local(local_i)%exists .eqv. .false.) then
-            call parcel%move_to(this%local(local_i))
-            local_i = local_i + 1
-            exit
+             call parcel%move_to(this%local(local_i))
+             ! print*, "THIS SHOULD BE FALSE", parcel%exists
+             ! local_i = local_i + 1
+             ! exit
           end if
           local_i = local_i + 1
-       end do
+        end do
       end associate
     end do
   end procedure
@@ -337,8 +358,9 @@ contains
     end if
 
     if (this%north_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%south_i)
@@ -354,8 +376,9 @@ contains
     end if
 
     if (this%south_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%north_i)
@@ -371,8 +394,9 @@ contains
     end if
 
     if (this%east_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%west_i)
@@ -388,8 +412,9 @@ contains
     end if
 
     if (this%west_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%east_i)
@@ -405,8 +430,9 @@ contains
     end if
 
     if (this%northeast_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%southwest_i)
@@ -422,8 +448,9 @@ contains
     end if
 
     if (this%northwest_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%southeast_i)
@@ -439,8 +466,9 @@ contains
     end if
 
     if (this%southeast_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%northwest_i)
@@ -456,8 +484,9 @@ contains
     end if
 
     if (this%southwest_boundary) then
-      parcel%exists = .false.
-      return
+      ! parcel%exists = .false.
+      ! return
+      parcel%lifetime = REPLACE_PARCEL_T
     end if
 
     call this%check_buf_size(this%northeast_i)
@@ -722,10 +751,12 @@ contains
 
 
   module procedure check_buf_size
-    if (i .gt. this%image_parcel_count) then
-       print *, this_image(), ": ERROR put buffer overflow"
-       call exit
-    end if
+    ! image_parcel_count old variable, TODO update how this is handeled
+    ! if (i .gt. this%image_parcel_count) then
+    !    call backtrace()
+    !    print *, this_image(), ": ERROR put buffer overflow"
+    !    call exit
+    ! end if
   end procedure check_buf_size
 
   ! Check if parcel is out of the image's boundary

@@ -242,6 +242,8 @@ contains
         if (0<var_list( kVARS%storage_gw) )                 call this%add_to_output( get_metadata( kVARS%storage_gw                   , domain%storage_gw%data_2d))
         if (0<var_list( kVARS%storage_lake) )               call this%add_to_output( get_metadata( kVARS%storage_lake                 , domain%storage_lake%data_2d))
         if (0<var_list( kVARS%roughness_z0) )               call this%add_to_output( get_metadata( kVARS%roughness_z0                 , domain%roughness_z0%data_2d))
+        if (0<var_list( kVARS%parcels) .and. this%n_local_parcels>0 ) &
+            call this%add_to_output( get_metadata( kVARS%parcels, domain%parcels%local, domain%parcels%image_parcel_count))
         if (0<var_list( kVARS%mass_leaf) )                  call this%add_to_output( get_metadata( kVARS%mass_leaf                    , domain%mass_leaf%data_2d))
         if (0<var_list( kVARS%mass_root) )                  call this%add_to_output( get_metadata( kVARS%mass_root                    , domain%mass_root%data_2d))
         if (0<var_list( kVARS%mass_stem) )                  call this%add_to_output( get_metadata( kVARS%mass_stem                    , domain%mass_stem%data_2d))

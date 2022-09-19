@@ -141,6 +141,7 @@ contains
       if (associated(this%snow_number%data_3d))           call this%snow_number%retrieve(no_sync=.True.)
       if (associated(this%graupel_mass%data_3d))          call this%graupel_mass%retrieve(no_sync=.True.)
       if (associated(this%graupel_number%data_3d))        call this%graupel_number%retrieve(no_sync=.True.)
+      if (this%parcels%total_parcel_count > 0)            call this%parcels%retrieve(no_sync=.True.)
     end subroutine
 
     !> -------------------------------

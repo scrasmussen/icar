@@ -120,8 +120,7 @@ class ICARoptions:
                                      terrain_smooth_cycles = terrain_smooth_cycles ,
                                      decay_rate_L_topo = decay_rate_L_topo,
                                      decay_rate_S_topo = decay_rate_S_topo,
-                                     sleve_n = sleve_n
-                                    )
+                                     sleve_n = sleve_n)
 
         self.forcing_var_list = ForcingVarList(filename=f,
                                                uvar=forc_u_var,
@@ -149,6 +148,8 @@ class ICARoptions:
                                               ideal=ideal,
                                               debug=debug,
                                               readdz=readdz,
+                                              ideal=ideal,
+                                              debug=debug,
                                               nz=nz,
                                               z_is_geopotential =\
                                               z_is_geopotential,

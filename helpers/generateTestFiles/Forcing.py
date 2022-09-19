@@ -3,7 +3,6 @@ import math
 import numpy as np
 import pandas as pd
 import xarray as xr
-import math
 
 # Create NetCDF file containing the forcing data
 class Forcing:
@@ -21,7 +20,7 @@ class Forcing:
                  lon0 = -105,
                  Schaer_test=False):
         print(weather_model.capitalize(), "weather model in use")
-        self.setup_class_variables(nz, nx, ny, nt, sealevel_pressure)
+        self.setup_class_variables(nz, nx, ny, nt, dz_value, sealevel_pressure)
 
         # --- Create and define variables for datafile
         # lat_flat = np.arange(39,39+nx*dx, dx)
@@ -36,13 +35,10 @@ class Forcing:
                             lat0+(ny/2*dy/111111),
                             dy/111111
                         )[:ny]
-
         x_m = np.arange(-nx*dx/2,nx*dx/2, dx)
 
-
-        print( "   forcing lon/lat min/max:  ", np.min(lon_flat), np.max(lon_flat), np.min(lat_flat), np.max(lat_flat) )
-        # print(" forcing lat min/max: ", np.amin(lat_flat), np.amax(lat_flat))
-        # lon_flat, lat_flat = np.meshgrid(lon_tmp, lat_tmp)
+        print( "   forcing lon/lat min/max:  ", np.min(lon_flat),
+               np.max(lon_flat), np.min(lat_flat), np.max(lat_flat) )
 
         self.define_data_variables(nt, nz, nx, ny, height_value, lat_flat,
                                    lon_flat, dz_value, theta_val, u_val,
@@ -87,11 +83,12 @@ class Forcing:
         return water_vapor
 
 
-    def setup_class_variables(self, nz, nx, ny, nt, sealevel_pressure):
+    def setup_class_variables(self, nz, nx, ny, nt, dz_value, sealevel_pressure):
         self.nt = nt
         self.nz = nz
         self.nx = nx
         self.ny = ny
+        self.dz_value = dz_value
         self.sealevel_pressure = sealevel_pressure
         dimensions4d = {
             "time": nt,
@@ -206,7 +203,6 @@ class Forcing:
                                 'units':'meters'}
                                 )
 
-
         # --- potential temperature variable
         self.set_theta(theta_val, weather_model)
 
@@ -254,7 +250,7 @@ class Forcing:
         if model in ['basic']:
             qv = np.full([self.nt, self.nz, self.nx, self.ny], qv_val)
         elif model in ['WeismanKlemp']:
-            qv = np.zeros([self.nt, self.nz, self.nx, self.ny])
+            qv = np.zeros([self.nt, self.nz, self.ny, self.nx])
             qv[:,:,:,:] = np.vectorize(calc_wk_qv)(self.z_data[:,:,:,:])
             # qv[:,:,:,:] = qv[0,:,:,:]
 
@@ -281,7 +277,6 @@ class Forcing:
         print('Pressure function used is', pressure_func)
         # basic is defined in ICAR's atm_utilities
         pressure_data = np.zeros([self.nt,self.nz,self.ny,self.nx])
-        # print(self.z_data[0,:,0,0])
         if model in ['basic', 'WeismanKlemp']:
             if pressure_func == 'calc_pressure_from_sea':
                 pressure_data[:,:,:,:] = np.vectorize(calc_pressure_from_sea)(
@@ -307,6 +302,7 @@ class Forcing:
         else:
              print("Error: ", pressure_model, " is not defined")
              exit()
+
         for t in range(self.nt):
             for i in range(self.nx):
                 for j in range(self.ny):

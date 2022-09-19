@@ -3,7 +3,7 @@ module parcel_interface
   use grid_interface, only : grid_t
   use options_interface, only : options_t
   use iso_c_binding, only : c_int !
-  use parcel_type_interface, only : parcel_t
+  use parcel_type_interface, only : parcel_t, REPLACE_PARCEL_T
   use variable_interface,    only : variable_t
 
   implicit none
