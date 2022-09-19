@@ -19,13 +19,11 @@ class Topography:
                  hill_height = 2000.0,
                  time_start = 20010101,
                  lat0 = 39.5,
-                 lon0 = -105):
-        print("todo: nx and ny because of C")
+                 lon0 = -105,
+                 Schaer_test=False):
 
         # initialize program variables
         nt = 1
-        if n_hills != 0:
-            print("Warning: number of hills not an options currently")
         self.n_hills = n_hills
 
         nx,ny = self.setup_class_variables(nx, ny, nt, mult_factor)
@@ -43,12 +41,28 @@ class Topography:
         time = time_series.astype(np.unicode_)
 
         # create longitude and latitude
-        lon_tmp = np.arange(lon0,lon0+(nx*dx),dx)[:nx] #[np.newaxis,:nx].repeat(ny,axis=0)
-        lat_tmp = np.arange(lat0,lat0+(ny*dy),dy)[:ny] #[:ny,np.newaxis].repeat(nx,axis=1)
+        # lon_tmp = np.arange(lon0,lon0+(nx*dx),dx)[:nx] #[np.newaxis,:nx].repeat(ny,axis=0)
+        # lat_tmp = np.arange(lat0,lat0+(ny*dy),dy)[:ny] #[:ny,np.newaxis].repeat(nx,axis=1)
+        ## If your displacements aren't too great (less than a few kilometers) and you're not right at the poles,
+        # use the quick and dirty estimate that 111,111 meters (111.111 km) in the y direction is 1 degree
+        # (of latitude) and 111,111 * cos(latitude) meters in the x direction is 1 degree (of longitude).
+        lon_tmp = np.arange(lon0-(nx/2*dx/111111/np.cos(np.radians(lat0))),
+                    lon0+(nx/2*dx/111111/np.cos(np.radians(lat0))),
+                    dx/111111/np.cos(np.radians(lat0))
+                  )[:nx]
+        lat_tmp = np.arange(lat0-(ny/2*dy/111111),
+                            lat0+(ny/2*dy/111111),
+                            dy/111111
+                        )[:ny]
 
         lon_tmp, lat_tmp = np.meshgrid(lon_tmp, lat_tmp)
 
-        self.define_data_variables(lat_tmp, lon_tmp, height_value, hill_height)
+        i = (np.arange(self.nx) - self.nx/2) * dx
+        j = (np.arange(self.ny) - self.ny/2) * dy    # dx=dy
+        X, Y = np.meshgrid(i,j)
+
+        self.define_data_variables(lat_tmp, lon_tmp, X, Y, height_value,
+                                   hill_height, n_hills, Schaer_test, dx)
 
         # --------------------------------------------------------------
         # Combine variables, create dataset and write to file
@@ -69,8 +83,11 @@ class Topography:
 
 
     # Define individual variables for datafile
-    def define_data_variables(self, lat_tmp, lon_tmp, height_value,
-                              hill_height):
+    def define_data_variables(self, lat_tmp, lon_tmp, X,
+                              Y, height_value, hill_height, n_hills,
+                              Schaer_test, dx):
+                              # lat_tmp, lon_tmp, height_value,
+                              # hill_height):
         # dimensions of variables
         dims2d = ["lat", "lon"]
         # dims3d = ["time","lat", "lon"]

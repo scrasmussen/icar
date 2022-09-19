@@ -1,8 +1,9 @@
 module parcel_type_interface
 implicit none
 private
-public :: parcel_t
+public :: parcel_t, REPLACE_PARCEL_T
 
+integer, parameter :: REPLACE_PARCEL_T = -2
 type parcel_t
     integer :: parcel_id = -1
     logical :: exists = .false.

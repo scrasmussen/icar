@@ -141,6 +141,7 @@ contains
       if (associated(this%snow_number%data_3d))           call this%snow_number%retrieve(no_sync=.True.)
       if (associated(this%graupel_mass%data_3d))          call this%graupel_mass%retrieve(no_sync=.True.)
       if (associated(this%graupel_number%data_3d))        call this%graupel_number%retrieve(no_sync=.True.)
+      if (this%parcels%total_parcel_count > 0)            call this%parcels%retrieve(no_sync=.True.)
     end subroutine
 
     !> -------------------------------
@@ -937,7 +938,7 @@ contains
             zr_u                  => this%zr_u,                           &
             zr_v                  => this%zr_v)
 
-            
+
             max_level = find_flat_model_level(options, nz, dz)
 
             ! Still not 100% convinced this works well in cases other than flat_z_height = 0 (w sleve). So for now best to keep at 0 when using sleve?

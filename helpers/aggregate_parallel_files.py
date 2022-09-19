@@ -17,7 +17,7 @@ file_search = "icar_out_{ens}_*"
 
 def load_file(file_name):
     '''Load a netcdf dataset into memory'''
-    return xr.open_dataset(file_name).load()
+    return xr.open_dataset(file_name,decode_times=False).load()
 
 
 def get_dims(dataset, section="d"):

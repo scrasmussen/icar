@@ -13,7 +13,7 @@ import ICARoptions as opt
 # ---------------------------------------
 # choose dimensions
 nz = 32
-nx = ny = 40
+nx = ny = 20 # 20
 
 # from ideal test
 dz_value          = 500.0    # thickness of each model gridcell   [m]
@@ -21,7 +21,8 @@ dz_value          = 500.0    # thickness of each model gridcell   [m]
 # hill_height       = 1000.0   # height of the ideal hill(s) [m]
 # n_hills           = 1.0      # number of hills across the domain
 
-u_test_val = v_test_val = w_test_val = 0.0
+u_test_val = v_test_val = 5.0
+w_test_val = 0.0
 qv_val = 0.001
 
 # --- choose function for creating pressure ---
@@ -33,13 +34,16 @@ weather_model = 'WeismanKlemp'
 
 # --- choose length of run ---
 start_date = '2020-12-01 00:00:00'
-end_date =   '2020-12-06 00:00:00'
+end_date =   '2020-12-02 00:00:00'
 
+# --- topography ---
+hill_height = 0.0 # 2000.0
 
 # --- parcel initialization ---
-total_num_parcels = 10
+total_num_parcels = 4 #20
 parc_environment_only = False
-parc_velocity_init = 1.0
+parc_z_init = 2.0
+parc_velocity_init = 5.0
 parc_velocity_prob_range = 0.0
 parc_rh = 0.99
 
@@ -47,18 +51,28 @@ parc_rh = 0.99
 def main():
     # ICAR Options generate the ICAR namelist
     opt.ICARoptions(nz=nz,
-                    output_vars=['pressure','temperature','parcels','potential_temperature', 'qv'],
+                    output_vars=['pressure','temperature','parcels','potential_temperature', 'qv', 'precipitation'],
+                    # phys_opt_conv=4,
+                    # phys_opt_pbl=2,
+                    # phys_opt_mp=1, # or 5
+                    # phys_opt_lsm=3,
+                    # phys_opt_rad=2,
+                    # PARCEL CHOICES
                     phys_opt_conv=4,
                     parc_total_parcels=total_num_parcels,
                     parc_environment_only=parc_environment_only,
+                    parc_z_init=parc_z_init,
                     parc_velocity_init=parc_velocity_init,
                     parc_velocity_prob_range=parc_velocity_prob_range,
                     parc_rh=parc_rh,
+                    output_file = 'output/icar_out_',
+                    restart_interval = 3600,
+                    restart_file = 'restart/icar_rst_',
                     start_date = start_date,
                     end_date = end_date)
     print("Generated icar_options.nml")
 
-    tg.Topography(nz, nx, ny)
+    tg.Topography(nz, nx, ny, hill_height=hill_height)
     print("Generated init.nc")
 
     # double check all passed variable get used
