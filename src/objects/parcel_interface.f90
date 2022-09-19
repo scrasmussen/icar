@@ -1,5 +1,6 @@
 ! --- Module Parcel Interface: defines parcel memory structure and movement
 module parcel_interface
+  use icar_constants, only : kCU_PARCEL
   use grid_interface, only : grid_t
   use options_interface, only : options_t
   use iso_c_binding, only : c_int !
