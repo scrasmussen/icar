@@ -12,7 +12,7 @@ import ICARoptions as opt
 # ----- Settings For Generate Files -----
 # ---------------------------------------
 # choose dimensions
-nz = 32
+nz = 34
 nx = ny = 20 # 20
 
 # from ideal test
@@ -31,10 +31,12 @@ pressure_func = 'calc_pressure_from_sea'
 # --- choose weather model ---
 # options: basic, WeismanKlemp
 weather_model = 'WeismanKlemp'
+# weather_model = 'basic'
 
 # --- choose length of run ---
+nt = 1
 start_date = '2020-12-01 00:00:00'
-end_date =   '2020-12-02 00:00:00'
+end_date =   '2020-12-01 06:00:00'
 
 # --- topography ---
 hill_height = 0.0 # 2000.0
@@ -52,13 +54,13 @@ def main():
     # ICAR Options generate the ICAR namelist
     opt.ICARoptions(nz=nz,
                     output_vars=['pressure','temperature','parcels','potential_temperature', 'qv', 'precipitation'],
-                    # phys_opt_conv=4,
+                    # phys_opt_conv=6,
                     # phys_opt_pbl=2,
                     # phys_opt_mp=1, # or 5
                     # phys_opt_lsm=3,
                     # phys_opt_rad=2,
                     # PARCEL CHOICES
-                    phys_opt_conv=4,
+                    phys_opt_conv=6,
                     parc_total_parcels=total_num_parcels,
                     parc_environment_only=parc_environment_only,
                     parc_z_init=parc_z_init,
@@ -76,7 +78,12 @@ def main():
     print("Generated init.nc")
 
     # double check all passed variable get used
-    forcing = fc.Forcing(nz, nx, ny,
+    forcing = fc.Forcing(start_date=start_date,
+                         nt=nt,
+                         dt=24,
+                         nz=nz,
+                         nx=nx,
+                         ny=ny,
                          u_val=u_test_val,
                          v_val=v_test_val,
                          w_val=w_test_val,

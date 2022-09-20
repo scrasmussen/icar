@@ -10,7 +10,8 @@ class Forcing:
     attributes = {"history": "Dec 01 00:00:00 2020"}
 
 
-    def __init__(self, nt=10, nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
+    def __init__(self, start_date = '2020-12-01 00:00:00', nt=2, dt=24, # hours
+                 nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
                  u_val=0.5, v_val=0.5, w_val=0.0,
                  theta_val=300.0,
                  height_value=500, dx=10, dy=10, dz_value=500.0,
@@ -47,10 +48,9 @@ class Forcing:
                                    hill_height, Schaer_test, dx, x_m)
 
         # define time
-        t0 = datetime.datetime(2020,12,1)
-        time = xr.DataArray([t0+datetime.timedelta(hours=dt) for dt in range(nt)], name="time",
-                            dims=["time"])
-
+        t0 = datetime.datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+        time = xr.DataArray([t0+datetime.timedelta(hours=t*dt) for t in range(nt)],
+                            name="time", dims=["time"])
         # --- Write all variable to netcdf file
         self.write_netcdf_file(time)
 
