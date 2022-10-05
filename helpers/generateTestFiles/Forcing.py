@@ -13,7 +13,7 @@ class Forcing:
     def __init__(self, start_date = '2020-12-01 00:00:00', nt=2, dt=24, # hours
                  nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
                  u_val=0.5, v_val=0.5, w_val=0.0,
-                 water_vapor_val=0.001, theta_val=300.0, nt=2
+                 water_vapor_val=0.001, theta_val=300.0,
                  height_value=500, dx=10, dy=10, dz_value=500.0,
                  qv_val=0.1, weather_model='basic',
                  pressure_func='calc_pressure_from_sea',
@@ -145,7 +145,7 @@ class Forcing:
 
         # if uval is given as a single float, make a uniform windfield:
         elif isinstance(u_val, float):
-            u_array= np.full([nt, nz, ny, nx], u_val[:nz])
+            u_array= np.full([nt, nz, ny, nx], u_val)
         # if u_val is given as a vector, interpret this a vector in the z direction (bottom-top):
         elif isinstance(u_val, np.ndarray):
             u_array=np.tile(u_val[:nz], (nt,nx,ny,1) )

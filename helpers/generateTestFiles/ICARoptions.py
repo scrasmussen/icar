@@ -148,8 +148,6 @@ class ICARoptions:
                                               ideal=ideal,
                                               debug=debug,
                                               readdz=readdz,
-                                              ideal=ideal,
-                                              debug=debug,
                                               nz=nz,
                                               z_is_geopotential =\
                                               z_is_geopotential,
