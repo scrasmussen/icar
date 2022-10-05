@@ -67,7 +67,7 @@ module parcel_interface
      ! procedure, public :: parcels_init
      ! procedure, public :: convect_const
      ! generic,   public :: initialize=>convect_const
-     procedure, public :: init_position
+     procedure, public :: allocate_parcels
      procedure, public :: init_num_parcels
      procedure, public :: image_num_parcels
      procedure, public :: move_if_needed
@@ -119,7 +119,7 @@ module parcel_interface
        type(options_t), intent(in) :: options
      end subroutine
 
-     module subroutine init_position(this, options, grid)
+     module subroutine allocate_parcels(this, options, grid)
        class(exchangeable_parcel), intent(inout) :: this
        type(options_t), intent(in) :: options
        type(grid_t),    intent(in) :: grid
@@ -282,9 +282,9 @@ module parcel_interface
      module subroutine write_bv_data(this, bv, bv_i, parcel_id, &
          timestep, buf_size)
        class(exchangeable_parcel), intent(in) :: this
-       integer, intent(in) :: bv_i, timestep, buf_size_i
-       real, intent(in) :: bv(buf_size_i)
-       integer, intent(in) :: parcel_id(buf_size_i)
+       integer, intent(in) :: bv_i, timestep, buf_size
+       real, intent(in) :: bv(buf_size)
+       integer, intent(in) :: parcel_id(buf_size)
      end subroutine
 
      module subroutine dry_lapse_rate(pressure, temperature, potential_temp, &
