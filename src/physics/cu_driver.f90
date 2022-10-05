@@ -99,6 +99,8 @@ contains
         implicit none
         type(domain_t),  intent(inout) :: domain
         type(options_t), intent(in) :: options
+        integer :: i, j
+
         if (options%physics%convection == kCU_PARCEL) &
             return
 
