@@ -15,7 +15,7 @@ module module_cu_parcel
   logical  :: debug = .false.
   type(parcel_options_type) :: parcel_options
   logical, parameter :: brunt_vaisala_data = .false.
-  logical, parameter :: replacement_message = .true.
+  logical, parameter :: replacement_message = .false.
   integer            :: local_buf_size
   ! variables for reporting starting conditions
   real               :: parcel_friction, parcel_precip_rate
@@ -243,7 +243,6 @@ contains
     bv_i = 1
     bv = 0
     parcel_id = 0
-    print* ,"DT = ", dt
 
     ! Iterate through parcels
     do i=1,ubound(this%local,1)
@@ -413,7 +412,8 @@ contains
     parcel%z_meters = parcel%z_meters + z_displacement
 
     if ((parcel%z .lt. grid%kts) .or. (parcel%z .gt. grid%kte)) then
-        print *, "PARCEL WENT OFF: Should be", grid%kts, "<", parcel%z, "<", grid%kte
+       if (replacement_message .eqv. .true.) &
+            print *, "PARCEL WENT OFF: Should be", grid%kts, "<", parcel%z, "<", grid%kte
         ! ---- replacement code ----
         parcel = create_empty_parcel(parcel%parcel_id, grid)
         if (parcel_options%replace_parcel) then
@@ -424,10 +424,11 @@ contains
            parcel%exists = .false.
            parcel%x = 0; parcel%z = 0; parcel%y = 0
         end if
-        if (replacement_message .eqv. .true.) &
+        if (replacement_message .eqv. .true.) then
              call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts, parcel_options%replace_parcel)
-             call parcel%print_parcel()
-
+             if (debug .eqv. .true.) &
+                  call parcel%print_parcel()
+        end if
         cycle
     end if
 
@@ -831,8 +832,6 @@ contains
       write(unit,f_format) 'parcel_precip_rate', parcel_precip_rate
 
       close(unit)
-      print *, "PARCEL OPTIONS", parcel_options
-      ! stop "ARTLESS"
   end subroutine write_parcel_init_conditions
 
   subroutine report_parcel_error(error_msg)
