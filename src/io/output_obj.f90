@@ -16,10 +16,6 @@ contains
         do i=1,domain%info%n_attrs
             call this%add_attribute(domain%info%attributes(i)%name, domain%info%attributes(i)%value)
         enddo
-
-        ! set parcel count for output_t
-        this%n_local_parcels = domain%parcels%image_parcel_count
-        this%n_total_parcels = domain%parcels%total_parcel_count
     end subroutine
 
 
@@ -242,8 +238,6 @@ contains
         if (0<var_list( kVARS%storage_gw) )                 call this%add_to_output( get_metadata( kVARS%storage_gw                   , domain%storage_gw%data_2d))
         if (0<var_list( kVARS%storage_lake) )               call this%add_to_output( get_metadata( kVARS%storage_lake                 , domain%storage_lake%data_2d))
         if (0<var_list( kVARS%roughness_z0) )               call this%add_to_output( get_metadata( kVARS%roughness_z0                 , domain%roughness_z0%data_2d))
-        if (0<var_list( kVARS%parcels) .and. this%n_local_parcels>0 ) &
-            call this%add_to_output( get_metadata( kVARS%parcels, domain%parcels%local, domain%parcels%image_parcel_count))
         if (0<var_list( kVARS%mass_leaf) )                  call this%add_to_output( get_metadata( kVARS%mass_leaf                    , domain%mass_leaf%data_2d))
         if (0<var_list( kVARS%mass_root) )                  call this%add_to_output( get_metadata( kVARS%mass_root                    , domain%mass_root%data_2d))
         if (0<var_list( kVARS%mass_stem) )                  call this%add_to_output( get_metadata( kVARS%mass_stem                    , domain%mass_stem%data_2d))
@@ -290,8 +284,11 @@ contains
         if (0<var_list( kVARS%iwv) )                        call this%add_to_output( get_metadata( kVARS%iwv                          , domain%iwv%data_2d))
         if (0<var_list( kVARS%iwl) )                        call this%add_to_output( get_metadata( kVARS%iwl                          , domain%iwl%data_2d))
         if (0<var_list( kVARS%iwi) )                        call this%add_to_output( get_metadata( kVARS%iwi                          , domain%iwi%data_2d))
-        if (0<var_list( kVARS%parcels) )                    call this%add_to_output( get_metadata( kVARS%parcels, domain%parcels%local, domain%parcels%image_parcel_count))
-
+        if (0<var_list( kVARS%parcels) .and. domain%parcels%image_parcel_count>0 ) then
+            this%n_image_parcels = domain%parcels%image_parcel_count
+            this%n_total_parcels = domain%parcels%total_parcel_count
+            call this%add_to_output(get_metadata( kVARS%parcels, domain%parcels%local, domain%parcels%image_parcel_count) )
+        end if
     end subroutine
 
     subroutine add_global_attributes(this)
@@ -458,7 +455,7 @@ contains
                     endif
                 elseif (var%parcels) then
                     ! if output is changed, change default_output_metadata.f90 as well
-                    num_p = this%n_local_parcels
+                    num_p = this%n_image_parcels
                     call check( nf90_put_var(this%ncfile_id, var%var_id,  &
                          transpose(reshape([real(&
                          var%data_parcels(1:num_p)%parcel_id), &
@@ -530,20 +527,20 @@ contains
         implicit none
         class(output_t),   intent(inout) :: this
         type(variable_t),  intent(inout) :: var
-        integer :: i, err
+        integer :: i, err, netcdf_type
 
         err = nf90_inq_varid(this%ncfile_id, var%name, var%var_id)
 
         ! if the variable was not found in the netcdf file then we will define it.
         if (err /= NF90_NOERR) then
-            if (var%dtype == kREAL) then
-                call check( nf90_def_var(this%ncfile_id, var%name, NF90_REAL, var%dim_ids, var%var_id), &
-                            "Defining variable:"//trim(var%name) )
-            elseif (var%dtype == kDOUBLE) then
-                call check( nf90_def_var(this%ncfile_id, var%name, NF90_DOUBLE, var%dim_ids, var%var_id), &
-                            "Defining variable:"//trim(var%name) )
+            if ((var%dtype == kREAL) .or. (var%name == "parcels")) then
+                netcdf_type = NF90_REAL
+            else if (var%dtype == kDOUBLE) then
+                netcdf_type = NF90_DOUBLE
             endif
 
+            call check( nf90_def_var(this%ncfile_id, var%name, netcdf_type, var%dim_ids, var%var_id), &
+                  "Defining variable:"//trim(var%name) )
 
             ! setup attributes
             do i=1,size(var%attributes)

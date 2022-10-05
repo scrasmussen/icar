@@ -43,7 +43,7 @@ module output_interface
       type(variable_t) :: time
 
       ! number of parcels
-      integer, public :: n_local_parcels = 0
+      integer, public :: n_image_parcels = 0
       integer, public :: n_total_parcels = 0
 
       ! store status of the object
