@@ -30,7 +30,7 @@ module variable_interface
 
         integer :: n_dimensions
         integer :: dtype
-        integer :: n_parcels
+        integer :: n_parcels = 0
         integer,                        allocatable :: dim_len(:)
         character(len=kMAX_DIM_LENGTH), allocatable :: dimensions(:)
 
