@@ -10,7 +10,7 @@
 submodule(domain_interface) domain_implementation
     use assertions_mod,       only : assert, assertions
     use mod_atm_utilities,    only : exner_function, update_pressure
-    use icar_constants,       only : kVARS, kLC_LAND, kLC_WATER, kWATER_LAKE, kDOUBLE
+    use icar_constants,       only : kVARS, kLC_LAND, kLC_WATER, kWATER_LAKE, kDOUBLE, kCU_PARCEL
     use string,               only : str
     use co_util,              only : broadcast
     use io_routines,          only : io_read, io_write
@@ -421,8 +421,9 @@ contains
 
         if (0<opt%vars_to_allocate( kVARS%znu) )                        allocate(this%znu(kms:kme),   source=0.0)
         if (0<opt%vars_to_allocate( kVARS%znw) )                        allocate(this%znw(kms:kme),   source=0.0)
+        ! if (0<opt%vars_to_allocate( kVARS%parcels) )                    call this%parcels%allocate_parcels(opt, this%grid) ! to fix
+        if (opt%physics%convection == kCU_PARCEL)                       call this%parcels%allocate_parcels(opt, this%grid)
 
-        call this%parcels%init_position(opt, this%grid) ! ARTLESS :: BETTER ORG
     end subroutine
 
     !> -------------------------------
