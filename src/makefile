@@ -339,7 +339,7 @@ $(info $$MODE        = ${MODE})
 
 
 
-OBJS=    	$(BUILD)driver.o	        \
+OBJS=    	\
 		$(BUILD)init.o			\
 		$(BUILD)time_step.o		\
 		$(BUILD)debug_utils.o		\
@@ -400,6 +400,7 @@ OBJS=    	$(BUILD)driver.o	        \
 		$(BUILD)mp_thompson.o		\
 		$(BUILD)mp_thompson_aer.o	\
 		$(BUILD)mp_wsm6.o		\
+		$(BUILD)mp_wsm3.o		\
 		$(BUILD)cu_driver.o		\
 		$(BUILD)cu_tiedtke.o		\
 		$(BUILD)cu_nsas.o		\
@@ -774,7 +775,7 @@ $(BUILD)vinterp.o: $(UTIL)vinterp.f90 $(BUILD)data_structures.o
 ###################################################################
 $(BUILD)mp_driver.o:$(PHYS)mp_driver.f90 $(BUILD)mp_simple.o $(BUILD)mp_thompson_aer.o $(BUILD)mp_thompson.o \
 					$(BUILD)mp_wsm6.o $(BUILD)mp_wsm3.o \
-					$(BUILD)data_structures.o $(BUILD)domain_h.o  $(BUILD)icar_constants.o\
+					$(BUILD)data_structures.o $(BUILD)domain_h.o  $(BUILD)icar_constants.o \
 					$(BUILD)wrf_constants.o
 
 $(BUILD)mp_morrison.o:$(PHYS)mp_morrison.f90 $(BUILD)data_structures.o
