@@ -34,21 +34,17 @@ contains
       total_parcels = options%parcel_options%total_parcels
       this%total_parcel_count = total_parcels
       this%image_parcel_count = total_parcels / num_images()
-      if (this_image() .le. mod(total_parcels, num_images())) then
-          this%image_parcel_count = this%image_parcel_count + 1
-      end if
-      print *, this_image(), ": IMAGE PARCEL COUNT", this%image_parcel_count
-      ! call backtrace()
+      print *, "Soren: this needs to be fixed later"
+      ! if (this_image() .le. mod(total_parcels, num_images())) then
+      !     this%image_parcel_count = this%image_parcel_count + 1
+      ! end if
+      if (debug .eqv. .true.) &
+         print *, this_image(), ": IMAGE PARCEL COUNT", this%image_parcel_count
     end procedure
 
-    module procedure init_position
+    module procedure allocate_parcels
       integer :: i, seed(34)
-
-      if (options%physics%convection /= kCU_PARCEL) then
-          return
-      end if
       call this%init_num_parcels(options)
-      print *, "===================== PARCEL INIT_POSITION ================="
 
       ! allocate boundary regions
       ! if (allocated(this%local)) deallocate(this%local)
@@ -62,9 +58,10 @@ contains
       this%west_boundary  = (grid%ximg == 1)
 
       ! this%image_parcel_count = options%parcel_options%total_parcels
-      ! print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
+      if (debug .eqv. .true.) &
+           print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
       ! allocate(this%local(this%image_parcel_count * 4))
-      allocate(this%local(total_parcels+1))  ! trying to allocate larger size, todo find sweet spot
+      allocate(this%local(total_parcels+10))  ! trying to allocate larger size, todo find sweet spot
 
       ! setup random number generator for parcel location
       ! seed = -1
@@ -73,7 +70,6 @@ contains
 
       do i=1,this%image_parcel_count
           call this%create_parcel_id()
-          ! print *, " PARCEL ID COUNT", this%parcel_id_count
           this%local(i) = create_empty_parcel(this%parcel_id_count, grid)
       end do
 
@@ -796,25 +792,4 @@ contains
       sync all
   end do
   end procedure write_bv_data
-
-  ! module subroutine set_outputdata(this, metadata)
-  !   implicit none
-  !   class(exchangeable_t), intent(inout)  :: this
-  !   type(variable_t),      intent(in),    :: metadata
-
-  !   if (present(metadata)) then
-  !       this%meta_data = metadata
-  !   endif
-
-  !   this%meta_data%data_3d => this%data_3d
-  !   this%meta_data%three_d = .True.
-
-  !   if (.not.allocated(this%meta_data%dim_len)) allocate(this%meta_data%dim_len(3))
-  !   this%meta_data%dim_len(1) = size(this%data_3d,1)
-  !   this%meta_data%dim_len(2) = size(this%data_3d,2)
-  !   this%meta_data%dim_len(3) = size(this%data_3d,3)
-
-  ! end subroutine
-
-
 end submodule ! parcel_implementation
