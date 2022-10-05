@@ -159,6 +159,7 @@ contains
         if (associated(input_data)) then
             meta_data%data_parcels  => input_data
             meta_data%parcels       =  .true.
+            meta_data%n_parcels     = image_parcel_count
             ! if this is changed, changed output_obj.f90 as well and up
             ! for now: id, lifetime, x, y, z, u, v, w, z_meters, z_interface,
             !          pressure, temperature, potential_temp, velocity,
@@ -2570,7 +2571,7 @@ contains
         !>------------------------------------------------------------
         !!  Parcels convected air parcels
         !!------------------------------------------------------------
-        associate(var=>var_meta(kVARS%parcels)) ! ARTLESS
+        associate(var=>var_meta(kVARS%parcels))
             var%name        = "parcels"
             var%dimensions  = three_d_parcel_dimensions
             var%unlimited_dim=.True.
