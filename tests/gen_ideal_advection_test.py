@@ -86,6 +86,7 @@ def main():
                     decay_rate_S_topo = decay_rate_S_topo,
                     sleve_n = 1.35,
                     space_varying = ".True.",
+                    fixed_dz_advection = ".True.",
                     dx = dx,                       # <-   affects advection speed!
                     phys_opt_mp = 0,
                     phys_opt_adv = 1,
