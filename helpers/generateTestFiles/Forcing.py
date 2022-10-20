@@ -10,14 +10,28 @@ class Forcing:
     attributes = {"history": "Dec 01 00:00:00 2020"}
 
 
-    def __init__(self, start_date = '2020-12-01 00:00:00', nt=2, dt=24, # hours
-                 nz=10, nx=2, ny=2, sealevel_pressure=100000.0,
-                 u_val=0.5, v_val=0.5, w_val=0.0,
-                 water_vapor_val=0.001, theta_val=300.0,
-                 height_value=500, dx=10, dy=10, dz_value=500.0,
-                 qv_val=0.1, weather_model='basic',
+    def __init__(self,
+                 start_date = '2020-12-01 00:00:00',
+                 nt=2,
+                 dt=24, # hours
+                 nz=40,
+                 nx=110,
+                 ny=110,
+                 sealevel_pressure=100000.0,
+                 u_val=0.5,
+                 v_val=0.5,
+                 w_val=0.0,
+                 water_vapor_val=0.001,
+                 theta_val=300.0,
+                 height_value=500,
+                 dx=100,
+                 dy=100,
+                 dz_value=500.0,
+                 qv_val=0.1,
+                 weather_model='basic',
                  pressure_func='calc_pressure_from_sea',
-                 hill_height=0, lat0 = 39.5,
+                 hill_height=0,
+                 lat0 = 39.5,
                  lon0 = -105,
                  Schaer_test=False):
         print(weather_model.capitalize(), "weather model in use")
@@ -170,8 +184,8 @@ class Forcing:
                                    'units':'m'})
 
         # --- Atmospheric Elevation
-        dz = np.full([nz,nx,ny], dz_value)
-        z_data = np.full([nt,nz,nx,ny], height_value)
+        dz = np.full([nz,ny,nx], dz_value)
+        z_data = np.full([nt,nz,ny,nx], height_value)
         for k in range(1,nz):
             z_data[:,k,:,:] = z_data[:,k-1,:,:] + dz[k,:,:]
         self.z_data = z_data
@@ -245,7 +259,6 @@ class Forcing:
 
 
 
-        # --- set RH
     def set_qv(self, qv_val, model='basic'):
         if model in ['basic']:
             qv = np.full([self.nt, self.nz, self.nx, self.ny], qv_val)

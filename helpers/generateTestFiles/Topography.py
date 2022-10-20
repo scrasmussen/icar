@@ -7,13 +7,13 @@ import numpy as np
 # Currently creates flat domain
 class Topography:
     def __init__(self,
-                 nz=32,
+                 nz=40,
                  nx=100,
                  ny=100,
                  f_name="init.nc",
                  mult_factor=1,
-                 dx=0.01,
-                 dy=0.01,
+                 dx=100,
+                 dy=100,
                  n_hills=0.0,
                  height_value=500,
                  hill_height = 2000.0,
@@ -28,7 +28,6 @@ class Topography:
 
         nx,ny = self.setup_class_variables(nx, ny, nt, mult_factor)
         self.setup_attributes(nx,ny)
-
 
         # --------------------------------------------------------------
         # Create and define variables for datafile
@@ -140,20 +139,19 @@ class Topography:
 
     # hasn't been integrated and tested
     def genHill(self, hill_height):
-        i = (np.arange(self.nx) - self.nx/2) / self.nx * np.pi * 2
-        j = (np.arange(self.nx) - self.ny/2) / self.ny * np.pi * 2
+        i = (np.arange(self.nx) - self.nx/2) #/ self.nx * np.pi * 2
+        j = (np.arange(self.ny) - self.ny/2) #/ self.ny * np.pi * 2
 
         ig, jg = np.meshgrid(i,j)
 
         hgt = ((np.cos(ig)+1) * (np.cos(jg)+1))/4 * hill_height
-
         return hgt
 
 
     # # generate a simple mountain range
     def gen_n_Hills(self, hill_height, n_hills):
         i = (np.arange(self.nx) - self.nx/2) / self.nx * np.pi * 2
-        j = (np.arange(self.nx) - self.ny/2) / self.ny * np.pi * 2
+        j = (np.arange(self.ny) - self.ny/2) / self.ny * np.pi * 2
 
         ig, jg = np.meshgrid(i,j)
 
