@@ -7,7 +7,7 @@ class ICARoptions:
                  model_version = 2.1,
                  model_comment = 'Unit Test Data',
                  # output namelist
-                 output_vars = ['u','v','precipitation','swe'],
+                 output_vars = ['u','v','precipitation','pressure','temperature','swe'],
                  output_interval = 3600,
                  output_file = 'icar_out_',
                  restart_interval = 3600,
@@ -30,7 +30,7 @@ class ICARoptions:
                  space_varying = ".True.",
                  flat_z_height = -1,
                  fixed_dz_advection = ".True.",
-                 sleve=".True.",
+                 sleve=".False.",
                  terrain_smooth_windowsize = 4,
                  terrain_smooth_cycles = 5,
                  decay_rate_L_topo = 1.0,
@@ -52,7 +52,7 @@ class ICARoptions:
                  forc_time_var = 'time',
                  # parameters namelist
                  start_date = '2020-12-01 00:00:00',
-                 end_date = '2020-12-02 00:00:00',
+                 end_date = '2020-12-01 01:00:00',
                  calendar = 'standard',
                  input_interval = '3600',
                  dx = '4000.0',
