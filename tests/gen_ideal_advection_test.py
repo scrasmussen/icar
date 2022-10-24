@@ -61,15 +61,7 @@ v_test_val = 0.0
 
 # relative_humidity = 0.01
 water_vapor_test_val = 0.000
-mixing_ratio = 0.001 # water vapor # not if constant
-qv_val = mixing_ratio
-
-# --- choose function for creating pressure ---
-# options: calc_pressure_from_sea, calc_pressure_dz_iter, calc_pressure_1m_iter
-pressure_func = 'calc_pressure_from_sea'
-# --- choose weather model ---
-# options: basic, WeismanKlemp
-weather_model = 'WeismanKlemp'
+qv_val = 0.001
 
 
 def main():
@@ -117,8 +109,8 @@ def main():
                          dz_value=dz_lo,
                          dx=dx_lo, dy=dy_lo,
                          qv_val=qv_val,
-                         weather_model=weather_model,
-                         pressure_func=pressure_func,
+                         weather_model='WeismanKlemp',
+                         pressure_func='calc_pressure_from_sea',
                          hill_height=hill_height,
                          lat0 = 39.5,lon0 = -105,
                          Schaer_test=Schaer_test

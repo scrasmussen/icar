@@ -8,89 +8,37 @@ import Topography as tg
 import Forcing as fc
 import ICARoptions as opt
 
-# ---------------------------------------
-# ----- Settings For Generate Files -----
-# ---------------------------------------
-# choose dimensions
-nz = 34
-nx = ny = 20 # 20
-
-# from ideal test
-dz_value          = 500.0    # thickness of each model gridcell   [m]
-# hill values currently do nothing, but one hill is created
-# hill_height       = 1000.0   # height of the ideal hill(s) [m]
-# n_hills           = 1.0      # number of hills across the domain
-
-u_test_val = v_test_val = 5.0
-w_test_val = 0.0
-qv_val = 0.001
-
-# --- choose function for creating pressure ---
-# options: calc_pressure_from_sea, calc_pressure_dz_iter, calc_pressure_1m_iter
-pressure_func = 'calc_pressure_from_sea'
-# --- choose weather model ---
-# options: basic, WeismanKlemp
-weather_model = 'WeismanKlemp'
-# weather_model = 'basic'
-
-# --- choose length of run ---
-nt = 1
-start_date = '2020-12-01 00:00:00'
-end_date =   '2020-12-01 06:00:00'
-
-# --- topography ---
-hill_height = 0.0 # 2000.0
-
-# --- parcel initialization ---
-total_num_parcels = 4 #20
-parc_environment_only = False
-parc_z_init = 2.0
-parc_velocity_init = 5.0
-parc_velocity_prob_range = 0.0
-parc_rh = 0.99
-
-
 def main():
+    # --- parcel initialization ---
+    total_num_parcels = 4 #20
+    parc_environment_only = False
+    parc_z_init = 2.0
+    parc_velocity_init = 5.0
+    parc_velocity_prob_range = 0.0
+    parc_rh = 0.99
+
     # ICAR Options generate the ICAR namelist
-    opt.ICARoptions(nz=nz,
-                    output_vars=['pressure','temperature','parcels','potential_temperature', 'qv', 'precipitation'],
-                    # phys_opt_conv=6,
+    opt.ICARoptions(                    output_vars=['pressure','temperature','parcels','potential_temperature', 'qv', 'precipitation'],
+                    phys_opt_conv=6,
                     # phys_opt_pbl=2,
                     # phys_opt_mp=1, # or 5
                     # phys_opt_lsm=3,
                     # phys_opt_rad=2,
                     # PARCEL CHOICES
-                    phys_opt_conv=6,
                     parc_total_parcels=total_num_parcels,
                     parc_environment_only=parc_environment_only,
                     parc_z_init=parc_z_init,
                     parc_velocity_init=parc_velocity_init,
                     parc_velocity_prob_range=parc_velocity_prob_range,
-                    parc_rh=parc_rh,
-                    output_file = 'output/icar_out_',
-                    restart_interval = 3600,
-                    restart_file = 'restart/icar_rst_',
-                    start_date = start_date,
-                    end_date = end_date)
+                    parc_rh=parc_rh)
     print("Generated icar_options.nml")
 
-    tg.Topography(nz, nx, ny, hill_height=hill_height)
+    tg.Topography()
     print("Generated init.nc")
 
-    # double check all passed variable get used
-    forcing = fc.Forcing(start_date=start_date,
-                         nt=nt,
-                         dt=24,
-                         nz=nz,
-                         nx=nx,
-                         ny=ny,
-                         u_val=u_test_val,
-                         v_val=v_test_val,
-                         w_val=w_test_val,
-                         dz_value=dz_value,
-                         qv_val=qv_val,
-                         weather_model=weather_model,
-                         pressure_func=pressure_func)
+    forcing = fc.Forcing(qv_val=0.001,
+                         weather_model = 'WeismanKlemp',
+                         pressure_func = 'calc_pressure_from_sea')
     print("Generated forcing.nc")
 
 if __name__ == "__main__":
