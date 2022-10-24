@@ -226,7 +226,7 @@ contains
     type(parcel_t) :: new_parcel
     real :: Gamma
     real :: a_prime, z_displacement, t, t_prime, buoyancy
-    real :: ws, wind_correction, delta_z, z_interface_val, z_wind_change
+    real :: ws, wind_correction, delta_z, z_interface_val, z_interface_change
     integer :: i,j,k, l_bound(1), dif(1), new_ijk(3), me, iter
     real :: new_pressure, R_s, exponent, alt_pressure, alt_pressure2
     real :: alt_pressure3, alt_pressure4, mixing_ratio, sat_mr_val
@@ -348,12 +348,11 @@ contains
     ! --- wind ---
     ! u: zonal velocity, wind towards the east
     ! v: meridional velocity, wind towards north
-    ! print *, "xzy", parcel%x, parcel%z, parcel%y
-    wind_correction = (dt*1.0 / (dz_val ))
+    ! - Handeling w wind field, currently ignored -
+    ! wind_correction = (dt*1.0 / (dz_val ))
     ! parcel%z = parcel%z + (parcel%w * wind_correction)
+    ! z_displacement = z_displacement + parcel%w
     wind_correction = (dt*1.0 / (dx_val ))
-    ! if (me .eq. 1 .and. parcel%parcel_id .eq. 0 .and. parcel%lifetime .eq. 0) &
-    !      print *, "add back x and y and z-wind"
     parcel%x = parcel%x + (parcel%u * wind_correction)
     parcel%y = parcel%y + (parcel%v * wind_correction)
 
@@ -404,9 +403,9 @@ contains
             A(x0,1,y0), A(x0,1,y1), A(x1,1,y0), A(x1,1,y1))
     end associate
     ! Interface change from topographical change
-    z_wind_change = z_interface_val - parcel%z_interface  ! currently 0, debugging
+    z_interface_change = z_interface_val - parcel%z_interface  ! currently 0, debugging
     parcel%z_interface = z_interface_val
-    z_displacement = z_displacement + z_wind_change
+    z_displacement = z_displacement + z_interface_change
 
     ! Move parcel, remove parcel if beyond the z axis
     parcel%z_meters = parcel%z_meters + z_displacement
@@ -594,8 +593,8 @@ contains
     ! if (parcel%parcel_id .eq. 0) &
     !      print *, "WARNING: precip is turned off!"
 
-    ! RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
-    ! parcel%relative_humidity = RH
+    RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
+    parcel%relative_humidity = RH
     end block ! saturated parcel block
 
     call this%move_if_needed(parcel, grid) ! Artless this maybe not needed
