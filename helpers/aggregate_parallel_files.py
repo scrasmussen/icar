@@ -53,6 +53,7 @@ def set_up_dataset(d):
     nz = kde - kds + 1
 
     data_vars = dict()
+    parcels = False
 
     for v in d.variables:
         coords = [c for c in d[v].coords]
@@ -68,6 +69,11 @@ def set_up_dataset(d):
             data = np.zeros((ny + y_off, nx + x_off))
         elif len(dims) == 3 and v == 'parcels':
             data = np.zeros((d.dims[dims[0]], d.attrs['n_total_parcels'], d.dims['parcel_info']))
+            units_d = {u:i for i,u in enumerate(attrs['units'].split(", "))}
+            parcel_coords = xr.Dataset(coords={'parcel_info': list(units_d.keys()),
+                                               'num_parcels': [i for i in range(1,d.n_total_parcels+1)]})
+            parcels = True
+            attrs['units']=''
         elif len(dims) == 3:
             data = np.zeros((d.dims[dims[0]], ny + y_off, nx + x_off))
         elif len(dims) == 4:
@@ -81,6 +87,8 @@ def set_up_dataset(d):
     ds = xr.Dataset(data_vars, attrs=d.attrs)
     ds.encoding = d.encoding
     ds["time"] = d["time"]
+    if parcels:
+        ds = ds.assign_coords(parcel_coords.coords)
     return ds.set_coords([c for c in d.coords])
 
 
