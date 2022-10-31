@@ -228,7 +228,7 @@ contains
         character(len=16) :: three_d_t_lake_soisno_dimensions(4)    = [character(len=16) :: "lon_x","lat_y","nlevsoisno","time"] !grid_lake_soisno
         character(len=16) :: three_d_t_lake_soisno_1_dimensions(4)  = [character(len=16) :: "lon_x","lat_y","nlevsoisno_1","time"]
         character(len=16) :: three_d_t_lake_soi_dimensions(4)       = [character(len=16) :: "lon_x","lat_y","nlevsoi_lake","time"] !grid_lake_soi
-        character(len=16) :: three_d_parcel_dimensions(3)       = [character(len=16) :: "parcel_info","num_parcels","time"]
+        character(len=16) :: three_d_parcel_dimensions(3)       = [character(len=16) :: "parcel_info","parcel_id","time"]
 
         if (allocated(var_meta)) deallocate(var_meta)
 

@@ -71,7 +71,7 @@ def set_up_dataset(d):
             data = np.zeros((d.dims[dims[0]], d.attrs['n_total_parcels'], d.dims['parcel_info']))
             units_d = {u:i for i,u in enumerate(attrs['units'].split(", "))}
             parcel_coords = xr.Dataset(coords={'parcel_info': list(units_d.keys()),
-                                               'num_parcels': [i for i in range(1,d.n_total_parcels+1)]})
+                                               'parcel_id': [i for i in range(1,d.n_total_parcels+1)]})
             parcels = True
             attrs['units']=''
         elif len(dims) == 3:
@@ -155,15 +155,11 @@ def agg_file(first_file, verbose=True):
             dims   = d[v].dims
             x_off, y_off = get_dim_offset(dims)
             if v == 'parcels':
-                n_local_parcels = d.parcels.shape[1]
-
-                d1 = data_set.parcels.values.shape[0]
-                d3 = data_set.parcels.values.shape[2]
-                data_set.parcels.values[np.ix_(np.arange(0,d1),
-                                               np.arange(parcel_i,parcel_i+n_local_parcels),
-                                               np.arange(0,d3))] = d.parcels.values
-                parcel_i += n_local_parcels # number of parcels in file
-
+                for t in range(len(data_set.parcels.time)):
+                    for p in range(d.attrs['n_total_parcels']):
+                        parcel_id = d.parcels.values[t,p][0]
+                        if parcel_id != -1:
+                            data_set.parcels.values[t,p,:] = d.parcels.values[t,p]
             elif len(dims) == 2:
                 data_set[v].values[ys:ye, xs:xe] = d[v].values[yts:yte, xts:xte]
             elif len(dims) == 3:

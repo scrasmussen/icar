@@ -18,6 +18,7 @@ submodule(parcel_interface) parcel_implementation
     integer            :: local_buf_size
     logical            :: dry_air_parcels
     integer            :: total_parcels
+    integer            :: parcel_id_start = -1
     ! integer, parameter :: local_buf_size=4*parcels_per_image
     ! -----------------------------------------------
 
@@ -31,13 +32,18 @@ submodule(parcel_interface) parcel_implementation
 contains
     module procedure init_num_parcels
       ! compute number of parcels per image
+      integer :: me
+      me = this_image()
       total_parcels = options%parcel_options%total_parcels
       this%total_parcel_count = total_parcels
-      this%image_parcel_count = total_parcels / num_images()
-      print *, "Soren: this needs to be fixed later"
-      ! if (this_image() .le. mod(total_parcels, num_images())) then
-      !     this%image_parcel_count = this%image_parcel_count + 1
-      ! end if
+      this%image_parcel_count = floor(real(total_parcels) / num_images())
+      if (me .le. mod(total_parcels, num_images())) then
+          this%image_parcel_count = this%image_parcel_count + 1
+          parcel_id_start = this%image_parcel_count * (me-1) + 1
+      else
+          parcel_id_start = this%image_parcel_count * (me-1) + 1 + &
+              mod(total_parcels, num_images())
+      end if
       if (debug .eqv. .true.) &
          print *, this_image(), ": IMAGE PARCEL COUNT", this%image_parcel_count
     end procedure
@@ -60,20 +66,18 @@ contains
       ! this%image_parcel_count = options%parcel_options%total_parcels
       if (debug .eqv. .true.) &
            print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
-      ! allocate(this%local(this%image_parcel_count * 4))
-      allocate(this%local(total_parcels+10))  ! trying to allocate larger size, todo find sweet spot
+      allocate(this%local(total_parcels))
 
       ! setup random number generator for parcel location
       ! seed = -1
       ! call random_seed(PUT=seed)
       call random_init(.true.,.true.)
 
-      do i=1,this%image_parcel_count
-          call this%create_parcel_id()
-          this%local(i) = create_empty_parcel(this%parcel_id_count, grid)
+      do i=parcel_id_start,parcel_id_start + this%image_parcel_count - 1
+          ! call this%create_parcel_id() ! todo? remove create_parcel_id func
+          this%local(i) = create_empty_parcel(i, grid)
       end do
 
-      ! buf_size = this%image_parcel_count * 4
       buf_size = total_parcels
       allocate( this%image_np[*])
       allocate( this%buf_north_in(buf_size)[*])
