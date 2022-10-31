@@ -46,7 +46,7 @@ contains
       parcel_friction = 0.001
       parcel_precip_rate = 0.01
 
-      do p_i=1,parcels%image_parcel_count
+      do p_i=1,parcels%total_parcel_count
           ! do p_i=1,parcels%image_num_parcels() ! NOT WORKING?
           if (parcels%local(p_i)%exists .eqv. .TRUE.) then
               call init_parcel_physics(parcels%local(p_i), pressure, &
@@ -233,7 +233,7 @@ contains
     real :: vapor_p, sat_p, T_C, T_K, mr, T_squared, T_original, tmp
     real :: xx, yy
     real :: rate_of_temp_change, bv(local_buf_size)
-    integer :: x0, x1, z0, z1, y0, y1, bv_i, image, parcel_id(local_buf_size)
+    integer :: x0, x1, z0, z1, y0, y1, bv_i
     integer :: u_bound(3)
     logical :: calc, calc_x, calc_y, exist
     real :: x, z, y, foo, dz_val
@@ -242,7 +242,6 @@ contains
     me = this_image()
     bv_i = 1
     bv = 0
-    parcel_id = 0
 
     ! Iterate through parcels
     do i=1,ubound(this%local,1)
@@ -363,7 +362,7 @@ contains
         (parcel%y .lt. grid%jds) .or. &
         (parcel%y .gt. grid%jde)) then
 
-        print *, "PARCEL IS OFF THE GRID: following not true"
+        print *, "PARCEL ",parcel%parcel_id ," IS OFF THE GRID: following not true"
         print *, grid%ids, '<', parcel%x, '<', grid%ide
         print *, grid%jds, '<', parcel%y, '<', grid%jde
 
@@ -431,20 +430,19 @@ contains
         cycle
     end if
 
-    if (brunt_vaisala_data .eqv. .true.) then
-        associate (A => potential_temp%data_3d, x => parcel%x, &
-            z => parcel%z , y => parcel%y)
-            x0 = floor(x); z0 = floor(z); y0 = floor(y);
-            x1 = ceiling(x); z1 = ceiling(z); y1 = ceiling(y);
+    ! if (brunt_vaisala_data .eqv. .true.) then
+    !     associate (A => potential_temp%data_3d, x => parcel%x, &
+    !         z => parcel%z , y => parcel%y)
+    !         x0 = floor(x); z0 = floor(z); y0 = floor(y);
+    !         x1 = ceiling(x); z1 = ceiling(z); y1 = ceiling(y);
 
-            bv(bv_i) = trilinear_interpolation( &
-                x, x0, x1, z, z0, z1, y, y0,y1, &
-                A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
-                A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
-            parcel_id(bv_i) = parcel%parcel_id
-            bv_i = bv_i + 1
-        end associate
-    end if
+    !         bv(bv_i) = trilinear_interpolation( &
+    !             x, x0, x1, z, z0, z1, y, y0,y1, &
+    !             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
+    !             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
+    !         bv_i = bv_i + 1
+    !     end associate
+    ! end if
 
     !-----------------------------------------------------------------
     ! Relative Humidity and physics of Moist Adiabatic Lapse Rate
@@ -593,7 +591,7 @@ contains
     ! if (parcel%parcel_id .eq. 0) &
     !      print *, "WARNING: precip is turned off!"
 
-    RH = parcel%water_vapor / sat_mr(parcel%temperature, parcel%pressure)
+    RH = parcel%water_vapor / sat_mr_local(parcel%temperature, parcel%pressure)
     parcel%relative_humidity = RH
     end block ! saturated parcel block
 
@@ -657,8 +655,9 @@ contains
     ! end if
 
 
-    if (brunt_vaisala_data .eqv. .true.) &
-         call this%write_bv_data(bv, bv_i, parcel_id, timestep, local_buf_size)
+    ! if (brunt_vaisala_data .eqv. .true.) &
+    !      call this%write_bv_data(bv, bv_i, parcel_id, timestep, local_buf_size)
+    !      parcel_id has been removed
     if (debug .eqv. .true.) &
          print *, "- AIR_PARCEL PHYSICS :: ENDING -"
   end subroutine cu_parcel_physics

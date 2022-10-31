@@ -287,7 +287,7 @@ contains
         if (0<var_list( kVARS%parcels) .and. domain%parcels%image_parcel_count>0 ) then
             this%n_image_parcels = domain%parcels%image_parcel_count
             this%n_total_parcels = domain%parcels%total_parcel_count
-            call this%add_to_output(get_metadata( kVARS%parcels, domain%parcels%local, domain%parcels%image_parcel_count) )
+            call this%add_to_output(get_metadata( kVARS%parcels, domain%parcels%local, this%n_total_parcels) )
         end if
     end subroutine
 
@@ -414,7 +414,7 @@ contains
         class(output_t), intent(in) :: this
         integer,         intent(in) :: current_step
         type(Time_type), intent(in) :: time
-        integer :: i, num_p
+        integer :: i, p
         integer :: dim_3d(3)
 
         type(Time_type) :: output_time
@@ -454,32 +454,35 @@ contains
                         endif
                     endif
                 elseif (var%parcels) then
-                    ! if output is changed, change default_output_metadata.f90 as well
-                    num_p = this%n_image_parcels
-                    call check( nf90_put_var(this%ncfile_id, var%var_id,  &
-                         transpose(reshape([real(&
-                         var%data_parcels(1:num_p)%parcel_id), &
-                         var%data_parcels(1:num_p)%lifetime, &
-                         var%data_parcels(1:num_p)%x, &
-                         var%data_parcels(1:num_p)%y, &
-                         var%data_parcels(1:num_p)%z, &
-                         var%data_parcels(1:num_p)%u, &
-                         var%data_parcels(1:num_p)%v, &
-                         var%data_parcels(1:num_p)%w, &
-                         var%data_parcels(1:num_p)%z_meters, &
-                         var%data_parcels(1:num_p)%z_interface, &
-                         var%data_parcels(1:num_p)%pressure, &
-                         var%data_parcels(1:num_p)%temperature, &
-                         var%data_parcels(1:num_p)%potential_temp, &
-                         var%data_parcels(1:num_p)%velocity, &
-                         var%data_parcels(1:num_p)%water_vapor, &
-                         var%data_parcels(1:num_p)%cloud_water, &
-                         var%data_parcels(1:num_p)%relative_humidity, &
-                         var%data_parcels(1:num_p)%buoyancy, &
-                         var%data_parcels(1:num_p)%buoyancy_multiplier &
-                         ], [num_p,19])) &
-                         , start_two_D_t), &
-                         "saving:"//trim(var%name) )
+                    do p=1,this%n_total_parcels
+                        if (var%data_parcels(p)%lifetime .ne. -1) then
+                            call check( nf90_put_var(this%ncfile_id, &
+                                var%var_id,  &
+                                transpose(reshape([real( &
+                                var%data_parcels(p)%parcel_id), &
+                                var%data_parcels(p)%lifetime, &
+                                var%data_parcels(p)%x, &
+                                var%data_parcels(p)%y, &
+                                var%data_parcels(p)%z, &
+                                var%data_parcels(p)%u, &
+                                var%data_parcels(p)%v, &
+                                var%data_parcels(p)%w, &
+                                var%data_parcels(p)%z_meters, &
+                                var%data_parcels(p)%z_interface, &
+                                var%data_parcels(p)%pressure, &
+                                var%data_parcels(p)%temperature, &
+                                var%data_parcels(p)%potential_temp, &
+                                var%data_parcels(p)%velocity, &
+                                var%data_parcels(p)%water_vapor, &
+                                var%data_parcels(p)%cloud_water, &
+                                var%data_parcels(p)%relative_humidity, &
+                                var%data_parcels(p)%buoyancy, &
+                                var%data_parcels(p)%buoyancy_multiplier &
+                                ], [1,19])) &
+                                , [1,p,current_step]), &
+                                "saving:"//trim(var%name) )
+                        end if
+                    end do
                 endif
             end associate
         end do
