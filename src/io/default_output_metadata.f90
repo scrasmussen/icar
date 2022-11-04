@@ -2575,9 +2575,28 @@ contains
             var%name        = "parcels"
             var%dimensions  = three_d_parcel_dimensions
             var%unlimited_dim=.True.
-            var%attributes  = [attribute_t("standard_name", "parcels"),              &
-                               attribute_t("long_name",     "Semi-Lagrangian Convected Air Parcels"), &
-                               attribute_t("units",         "ID, lifetime, x, y, z, u, v, w, z_meters, z_interface, &
+            var%attributes  = [attribute_t("non_standard_name", "parcels"),              &
+                               attribute_t("long_name", "Semi-Lagrangian Convected Air Parcels"), &
+                               attribute_t("ID", "ID Number"), &
+                               attribute_t("lifetime", "number of steps"), &
+                               attribute_t("x", "x grid point"), &
+                               attribute_t("y", "y grid point"), &
+                               attribute_t("z", "z grid point"), &
+                               attribute_t("u", "u speed"), &
+                               attribute_t("v", "v speed"), &
+                               attribute_t("w", "w speed"), &
+                               attribute_t("z_meters", "z meters"), &
+                               attribute_t("z_interface", "z grid point"), &
+                               attribute_t("pressure", "Pa"), &
+                               attribute_t("temperature", "K"), &
+                               attribute_t("potential_temp", "K"), &
+                               attribute_t("velocity", "grid point per timestep"), &
+                               attribute_t("qv", "kg kg-1"), &
+                               attribute_t("qc", "kg kg-1"), &
+                               attribute_t("relative_humidity", "decimal percentage"), &
+                               attribute_t("buoyancy", "N"), &
+                               attribute_t("buoyancy multiplier", "dimensionless"), &
+                               attribute_t("units", "ID, lifetime, x, y, z, u, v, w, z_meters, z_interface, &
                                &pressure, temperature, potential_temp, velocity, qv, qc, relative_humidity, buoyancy, &
                                &buoyancy_multiplier")]
         end associate
