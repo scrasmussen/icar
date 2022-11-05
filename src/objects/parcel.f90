@@ -67,6 +67,9 @@ contains
       if (debug .eqv. .true.) &
            print *, " ALLOCATING", this%image_parcel_count, "PARCELS"
       allocate(this%local(total_parcels))
+      do i=1,total_parcels
+          this%local(i)%exists = .false.
+      end do
 
       ! setup random number generator for parcel location
       ! seed = -1
@@ -119,7 +122,7 @@ contains
 
     ! filler values, the rest are set later
     parcel = parcel_t( &
-        parcel_id, .true., 0, 0.0, &
+        parcel_id, .true., .false., 0.0, &
         x, y, z, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
@@ -127,6 +130,15 @@ contains
         0.0)
     end procedure
 
+    ! module procedure create_empty_exchange_parcel
+    ! parcel = parcel_t( &
+    !     parcel_id, .false., .false., 0.0, &
+    !     x, y, z, 0.0, &
+    !     0.0, 0.0, 0.0, 0.0, &
+    !     0.0, 0.0, 0.0, 0.0, &
+    !     0.0, 0.0, 0.0, 0.0, &
+    !     0.0)
+    ! end procedure
 
     module procedure move_if_needed
     integer :: its, ite, kts, kte, jts, jte
@@ -295,27 +307,27 @@ contains
 
     sync images( neighbors )
 
-    if (.not. this%north_boundary) call this%retrieve_buf(this%buf_north_in)
-    if (.not. this%south_boundary) call this%retrieve_buf(this%buf_south_in)
-    if (.not. this%east_boundary) call this%retrieve_buf(this%buf_east_in)
-    if (.not. this%west_boundary) call this%retrieve_buf(this%buf_west_in)
-    if (.not. this%northeast_boundary) &
-        call this%retrieve_buf(this%buf_northeast_in)
-    if (.not. this%northwest_boundary) &
-        call this%retrieve_buf(this%buf_northwest_in)
-    if (.not. this%southeast_boundary) &
-        call this%retrieve_buf(this%buf_southeast_in)
-    if (.not. this%southwest_boundary) &
-        call this%retrieve_buf(this%buf_southwest_in)
+    ! if (.not. this%north_boundary) call this%retrieve_buf(this%buf_north_in)
+    ! if (.not. this%south_boundary) call this%retrieve_buf(this%buf_south_in)
+    ! if (.not. this%east_boundary) call this%retrieve_buf(this%buf_east_in)
+    ! if (.not. this%west_boundary) call this%retrieve_buf(this%buf_west_in)
+    ! if (.not. this%northeast_boundary) &
+    !     call this%retrieve_buf(this%buf_northeast_in)
+    ! if (.not. this%northwest_boundary) &
+    !     call this%retrieve_buf(this%buf_northwest_in)
+    ! if (.not. this%southeast_boundary) &
+    !     call this%retrieve_buf(this%buf_southeast_in)
+    ! if (.not. this%southwest_boundary) &
+    !     call this%retrieve_buf(this%buf_southwest_in)
     ! For if the parcels are cycling around to opposite side of domain
-    ! call this%retrieve_buf(this%buf_north_in)
-    ! call this%retrieve_buf(this%buf_south_in)
-    ! call this%retrieve_buf(this%buf_east_in)
-    ! call this%retrieve_buf(this%buf_west_in)
-    ! call this%retrieve_buf(this%buf_northeast_in)
-    ! call this%retrieve_buf(this%buf_northwest_in)
-    ! call this%retrieve_buf(this%buf_southeast_in)
-    ! call this%retrieve_buf(this%buf_southwest_in)
+    call this%retrieve_buf(this%buf_north_in)
+    call this%retrieve_buf(this%buf_south_in)
+    call this%retrieve_buf(this%buf_east_in)
+    call this%retrieve_buf(this%buf_west_in)
+    call this%retrieve_buf(this%buf_northeast_in)
+    call this%retrieve_buf(this%buf_northwest_in)
+    call this%retrieve_buf(this%buf_southeast_in)
+    call this%retrieve_buf(this%buf_southwest_in)
 
     this%north_i = 1
     this%south_i = 1
@@ -328,26 +340,18 @@ contains
   end procedure
 
   module procedure retrieve_buf
-    integer :: i, buf_n, local_i, local_n
+    integer :: i, buf_n, local_n
     buf_n = ubound(buf, dim=1)
-    local_n = ubound(this%local, dim=1)
-    local_i = 1
     do i=1,buf_n
       associate (parcel=>buf(i))
-        do while (parcel%exists .eqv. .true.)
-          if (local_i .gt. local_n) then
-             call backtrace()
-             call parcel%print_parcel()
-             stop "retrieve_buf is out of bounds"
-          end if
-          if (this%local(local_i)%exists .eqv. .false.) then
-             call parcel%move_to(this%local(local_i))
-             ! print*, "THIS SHOULD BE FALSE", parcel%exists
-             ! local_i = local_i + 1
-             ! exit
-          end if
-          local_i = local_i + 1
-        end do
+        if (parcel%exists .eqv. .true.) then
+           if (this%local(parcel%parcel_id)%exists .eqv. .true.) then
+               print *, "moving parcel_id", parcel%parcel_id
+               print *, this_image(), ":", this%local(parcel%parcel_id)
+               stop "SHOULD NOT EXISTS AT THIS POINT"
+           end if
+           call parcel%move_to(this%local(parcel%parcel_id))
+        end if
       end associate
     end do
   end procedure
@@ -367,6 +371,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_south_in(this%south_i)[north_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%south_i = this%south_i + 1
   end procedure
 
@@ -385,6 +390,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_north_in(this%north_i)[south_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%north_i = this%north_i + 1
   end procedure
 
@@ -403,6 +409,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_west_in(this%west_i)[east_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%west_i = this%west_i + 1
   end procedure
 
@@ -421,6 +428,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_east_in(this%east_i)[west_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%east_i = this%east_i + 1
   end procedure
 
@@ -439,6 +447,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_southwest_in(this%southwest_i)[northeast_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%southwest_i = this%southwest_i + 1
   end procedure
 
@@ -457,6 +466,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_southeast_in(this%southeast_i)[northwest_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%southeast_i = this%southeast_i + 1
   end procedure
 
@@ -475,6 +485,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_northwest_in(this%northwest_i)[southeast_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%northwest_i = this%northwest_i + 1
   end procedure
 
@@ -493,6 +504,7 @@ contains
     !dir$ pgas defer_sync
     this%buf_northeast_in(this%northeast_i)[southwest_con_neighbor] = parcel
     parcel%exists = .false.
+    parcel%parcel_id = -1
     this%northeast_i = this%northeast_i + 1
   end procedure
 
@@ -528,7 +540,6 @@ contains
       this%northwest_boundary = .true.
       this%southwest_boundary = .true.
     end if
-
 
     if (.not.allocated(neighbors)) then
       associate(me=>this_image())
@@ -571,6 +582,7 @@ contains
           neighbors(current) = west_con_neighbor
           current = current+1
         endif
+
         ! if current = 1 then all of the boundaries were set, just store ourself as our "neighbor"
         if (current == 1) then
           neighbors(current) = me
@@ -605,6 +617,8 @@ contains
               ! southwest_con_neighbor = - 2
             else  if (this%east_boundary .eqv. .true.) then
               southeast_con_neighbor = me - nx * 2 + 1
+              if (southwest_con_neighbor == 0) &
+                  southwest_con_neighbor = 1
             else  if (this%west_boundary .eqv. .true.) then
               southwest_con_neighbor = me - 1
               ! southwest_con_neighbor = - 1
@@ -653,6 +667,12 @@ contains
       end associate
     end if
 
+
+    if (any(neighbors .le. 0)) then
+        print *, "ERROR: value in neighbors is less than 1. Image", &
+            this_image(),"neighbors are", neighbors
+        stop "ERROR: neighbor image setup failure"
+    end if
   end procedure
 
   function bilinear_interpolation(x, x0, x1, y, y0, y1, &
