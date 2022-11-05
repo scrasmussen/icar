@@ -284,7 +284,7 @@ contains
         if (0<var_list( kVARS%iwv) )                        call this%add_to_output( get_metadata( kVARS%iwv                          , domain%iwv%data_2d))
         if (0<var_list( kVARS%iwl) )                        call this%add_to_output( get_metadata( kVARS%iwl                          , domain%iwl%data_2d))
         if (0<var_list( kVARS%iwi) )                        call this%add_to_output( get_metadata( kVARS%iwi                          , domain%iwi%data_2d))
-        if (0<var_list( kVARS%parcels) .and. domain%parcels%image_parcel_count>0 ) then
+        if (0<var_list( kVARS%parcels) .and. domain%parcels%total_parcel_count>0 ) then
             this%n_image_parcels = domain%parcels%image_parcel_count
             this%n_total_parcels = domain%parcels%total_parcel_count
             call this%add_to_output(get_metadata( kVARS%parcels, domain%parcels%local, this%n_total_parcels) )
@@ -455,7 +455,7 @@ contains
                     endif
                 elseif (var%parcels) then
                     do p=1,this%n_total_parcels
-                        if (var%data_parcels(p)%lifetime .ne. -1) then
+                        if (var%data_parcels(p)%exists .eqv. .true.) then
                             call check( nf90_put_var(this%ncfile_id, &
                                 var%var_id,  &
                                 transpose(reshape([real( &
