@@ -246,12 +246,30 @@ contains
     ! Iterate through parcels
     do i=1,ubound(this%local,1)
        associate (parcel=>this%local(i))
-        !  parcel = create_empty_parcel(parcel%parcel_id, grid)
-        ! if (parcel_options%replace_parcel) then
-        !     call cu_parcel_init(parcel, grid, &
-        !         z_interface, z_m, potential_temp, pressure, &
-        !         u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
-        !  else
+
+    ! parcel has looped around and needs to be recreated
+    if ((parcel%replace .eqv. .true.) .and. &
+        (parcel%parcel_id .ne. -1)) then
+        print *, "replacing!", parcel%parcel_id
+        parcel = create_empty_parcel(parcel%parcel_id, grid)
+        call cu_parcel_init(parcel, grid, &
+            z_interface, z_m, potential_temp, pressure, &
+            u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+    end if
+    if (debug .eqv. .true.) then
+        if (parcel%parcel_id == -1 .and. &
+            parcel%exists .eqv. .true.) then
+            print *, this_image(), ": ID:", parcel%parcel_id, parcel%exists
+            print *, parcel
+            stop "ERROR: parcel id and exists are not in agreement, 1st"
+        end if
+        if ((parcel%parcel_id .ne. -1) .and. &
+            (parcel%exists .eqv. .false.)) then
+            print *, this_image(), ": ID:", parcel%parcel_id, parcel%exists
+            print *, parcel
+            stop "ERROR: parcel id and exists are not in agreement, 2nd"
+        end if
+    end if
 
     if (parcel%exists .eqv. .true.) then
         call this%parcel_bounds_check(parcel, grid)
@@ -367,17 +385,22 @@ contains
         print *, grid%jds, '<', parcel%y, '<', grid%jde
 
         ! ---- replacement code ----
-        parcel = create_empty_parcel(parcel%parcel_id, grid)
-        if (parcel_options%replace_parcel) then
-            call cu_parcel_init(parcel, grid, &
-                z_interface, z_m, potential_temp, pressure, &
-                u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
-         else
-            parcel%exists = .false.
-            parcel%x = 0; parcel%z = 0; parcel%y = 0
-         end if
-        if (replacement_message .eqv. .true.) &
-             call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts, parcel_options%replace_parcel)
+        parcel%replace = .true.
+        call this%move_if_needed(parcel, grid)
+        print *, this_image(), ":parcel id ",parcel%parcel_id," after moving exists=",&
+            parcel%exists, "lifetime= ", parcel%lifetime
+        ! parcel%parcel_id = -1
+        ! parcel = create_empty_parcel(parcel%parcel_id, grid) ! ARTLESS
+        ! if (parcel_options%replace_parcel) then
+        !     call cu_parcel_init(parcel, grid, &
+        !         z_interface, z_m, potential_temp, pressure, &
+        !         u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+        !  else
+        !     parcel%exists = .false.
+        !     parcel%x = 0; parcel%z = 0; parcel%y = 0
+        !  end if
+        ! if (replacement_message .eqv. .true.) &
+        !      call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts, parcel_options%replace_parcel)
         cycle
 
     end if
@@ -414,14 +437,14 @@ contains
             print *, "PARCEL WENT OFF: Should be", grid%kts, "<", parcel%z, "<", grid%kte
         ! ---- replacement code ----
         parcel = create_empty_parcel(parcel%parcel_id, grid)
-        if (parcel_options%replace_parcel) then
-           call cu_parcel_init(parcel, grid, &
-                z_interface, z_m, potential_temp, pressure, &
-                u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
-        else
-           parcel%exists = .false.
-           parcel%x = 0; parcel%z = 0; parcel%y = 0
-        end if
+        ! if (parcel_options%replace_parcel) then
+        call cu_parcel_init(parcel, grid, &
+            z_interface, z_m, potential_temp, pressure, &
+            u_in, v_in, w_in, dz, water_vapor, cloud_water_mass)
+        ! else
+        !    parcel%exists = .false.
+        !    parcel%x = 0; parcel%z = 0; parcel%y = 0
+        ! end if
         if (replacement_message .eqv. .true.) then
              call print_replacement_message(parcel%parcel_id, parcel%z, grid%kts, parcel_options%replace_parcel)
              if (debug .eqv. .true.) &
