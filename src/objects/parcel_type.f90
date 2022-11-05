@@ -7,7 +7,7 @@ integer, parameter :: REPLACE_PARCEL_T = -2
 type parcel_t
     integer :: parcel_id = -1
     logical :: exists = .false.
-    integer :: moved
+    logical :: replace = .false.
     real :: lifetime
     real :: x, y, z
     real :: u, v, w
@@ -27,11 +27,12 @@ contains
     type(parcel_t), intent(inout)  :: to
     ! handle the from
     from%exists = .false.
-    to%moved  = from%moved +1
-    from%moved  = 0
+    to%replace  = from%replace
+    from%replace  = .false.
     ! handle the to
     to%exists = .true.
     to%parcel_id = from%parcel_id
+    from%parcel_id = -1
     to%x = from%x; to%y = from%y; to%z = from%z
     to%u = from%u; to%v = from%v; to%w = from%w
     to%z_meters = from%z_meters
@@ -49,7 +50,7 @@ contains
     class(parcel_t), intent(inout) :: this
     print *, "--- parcel", this%parcel_id, "---"
     print *, "exists", this%exists
-    print *, "moved", this%moved
+    print *, "replace", this%replace
     print *, "x,y,z", this%x, this%y, this%z
     print *, "u,v,w", this%u, this%v, this%w
     print *, "z_meters", this%z_meters
