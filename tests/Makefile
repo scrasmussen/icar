@@ -27,7 +27,7 @@ s: cp
 	./icar
 r: run
 run: cp
-	mpiexec -np 4 ./icar
+	cafrun -np 2 ./icar
 
 # Aggregate output files
 agg:
@@ -36,3 +36,5 @@ agg:
 clean:
 	rm -f *~ icar icar_out_* icar_rst_*
 	rm -f init.nc forcing.nc icar_options.nml init_parcel_conditions.txt
+cleandata:
+	rm -f icar_out_2020-* icar_out_* icar_rst_*
