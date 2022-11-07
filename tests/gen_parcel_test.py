@@ -30,13 +30,15 @@ def main():
                     parc_z_init=parc_z_init,
                     parc_velocity_init=parc_velocity_init,
                     parc_velocity_prob_range=parc_velocity_prob_range,
-                    parc_rh=parc_rh)
+                    parc_rh=parc_rh,
+                    end_date='2020-12-08 00:00:00')
     print("Generated icar_options.nml")
 
     tg.Topography()
     print("Generated init.nc")
 
     forcing = fc.Forcing(qv_val=0.001,
+                         nt=10,
                          weather_model = 'WeismanKlemp',
                          pressure_func = 'calc_pressure_from_sea')
     print("Generated forcing.nc")
