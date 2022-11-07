@@ -158,7 +158,9 @@ def agg_file(first_file, verbose=True):
                 for t in range(len(data_set.parcels.time)):
                     for p in range(d.attrs['n_total_parcels']):
                         parcel_id = d.parcels.values[t,p][0]
-                        if parcel_id != -1:
+                        # this range is needed since parcel could be -1 or
+                        # an unitiliazed large number
+                        if (parcel_id > 0 and parcel_id < 1000000000):
                             data_set.parcels.values[t,p,:] = d.parcels.values[t,p]
             elif len(dims) == 2:
                 data_set[v].values[ys:ye, xs:xe] = d[v].values[yts:yte, xts:xte]
