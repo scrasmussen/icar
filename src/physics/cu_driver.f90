@@ -88,7 +88,12 @@ contains
                          [kVARS%water_vapor, kVARS%potential_temperature, kVARS%temperature,                        &
                          kVARS%cloud_water, kVARS%cloud_ice, kVARS%precipitation, kVARS%convective_precipitation,   &
                          kVARS%sensible_heat, kVARS%latent_heat, kVARS%u, kVARS%v, kVARS%pressure, kVARS%kpbl])
-
+        else if (options%physics%convection==kCU_PARCEL) then
+            call options%restart_vars( &
+                         [kVARS%water_vapor, kVARS%potential_temperature, kVARS%temperature,                        &
+                         kVARS%cloud_water, kVARS%cloud_ice, kVARS%precipitation, kVARS%convective_precipitation,   &
+                         kVARS%sensible_heat, kVARS%latent_heat, kVARS%u, kVARS%v, kVARS%pressure, &
+                         kVARS%parcels])
         endif
 
 

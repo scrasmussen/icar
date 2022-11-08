@@ -2585,7 +2585,7 @@ contains
                                attribute_t("u", "u speed"), &
                                attribute_t("v", "v speed"), &
                                attribute_t("w", "w speed"), &
-                               attribute_t("z_meters", "z meters"), &
+                               attribute_t("z_meters", "meters"), &
                                attribute_t("z_interface", "z grid point"), &
                                attribute_t("pressure", "Pa"), &
                                attribute_t("temperature", "K"), &
