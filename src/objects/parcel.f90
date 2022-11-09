@@ -127,7 +127,7 @@ contains
         0.0, 0.0, 0.0, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
         0.0, 0.0, 0.0, 0.0, &
-        0.0)
+        1.0)
     end procedure
 
     ! module procedure create_empty_exchange_parcel
@@ -143,6 +143,8 @@ contains
     module procedure move_if_needed
     integer :: its, ite, kts, kte, jts, jte
     real :: x, y, z, xx, yy
+    logical :: random_neighbor_destination
+    random_neighbor_destination = .false.
     !-----------------------------------------------------------------
     ! Move parcel if needed
     !-----------------------------------------------------------------
@@ -164,11 +166,13 @@ contains
             !     , parcel%parcel_id
             x = x - grid%nx_global + 1
             xx = xx + 2
+            random_neighbor_destination = .true.
         else if (x < 1) then
             ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
             !     , parcel%parcel_id
             x = x + grid%nx_global - 1
             xx = xx - 2
+            random_neighbor_destination = .true.
         end if
 
         if (y > grid%ny_global) then
@@ -176,13 +180,21 @@ contains
             !     , parcel%parcel_id
             y = y - grid%ny_global + 1
             yy = yy + 2
+            random_neighbor_destination = .true.
         else if (y < 1) then
             ! if (caf_comm_message .eqv. .true.) print *, "WRAPPED" &
             !     , parcel%parcel_id
             y = y + grid%ny_global - 1
             yy = yy - 2
+            random_neighbor_destination = .true.
         end if
     end if
+
+    ! --- todo: add random destination coarrays and functions
+    ! if (random_neighbor_destination .eqv. .true.) then
+    !     this%put_random_destination(parcel)
+    !     return
+    ! end if
 
     ! Check values to know where to send parcel
     if (yy .lt. jts-1) then      ! "jts  <   y    <  jte"
@@ -361,11 +373,11 @@ contains
        print*, "from", this_image(), "to", north_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%north_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%north_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%south_i)
     !dir$ pgas defer_sync
@@ -380,11 +392,11 @@ contains
        print*, "from", this_image(), "to", south_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%south_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%south_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%north_i)
     !dir$ pgas defer_sync
@@ -399,11 +411,11 @@ contains
        print*, "from", this_image(), "to", east_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%east_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%east_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%west_i)
     !dir$ pgas defer_sync
@@ -418,11 +430,11 @@ contains
        print*, "from", this_image(), "to", west_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%west_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%west_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%east_i)
     !dir$ pgas defer_sync
@@ -437,11 +449,11 @@ contains
        print*, "from", this_image(), "to", northeast_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%northeast_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%northeast_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%southwest_i)
     !dir$ pgas defer_sync
@@ -456,11 +468,11 @@ contains
        print*, "from", this_image(), "to", northwest_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%northwest_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%northwest_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%southeast_i)
     !dir$ pgas defer_sync
@@ -475,11 +487,11 @@ contains
        print*, "from", this_image(), "to", southeast_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%southeast_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%southeast_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%northwest_i)
     !dir$ pgas defer_sync
@@ -494,11 +506,11 @@ contains
        print*, "from", this_image(), "to", southwest_con_neighbor, parcel%parcel_id
     end if
 
-    if (this%southwest_boundary) then
-      ! parcel%exists = .false.
-      ! return
-      parcel%lifetime = REPLACE_PARCEL_T
-    end if
+    ! if (this%southwest_boundary) then
+    !   ! parcel%exists = .false.
+    !   ! return
+    !   ! parcel%lifetime = REPLACE_PARCEL_T
+    ! end if
 
     call this%check_buf_size(this%northeast_i)
     !dir$ pgas defer_sync

@@ -167,6 +167,7 @@ contains
 
     parcel%relative_humidity = parcel%water_vapor  / sat_mr_local(parcel%temperature, parcel%pressure)
 
+    parcel%buoyancy_multiplier = 1
     ! change parcel parameters based on namelist options
     if (parcel_options%environment_only .eqv. .false.) then
         if (int(parcel_options%velocity_init) .ne. -9999) &
@@ -313,12 +314,19 @@ contains
 
     buoyancy = (T - T_prime) / T_prime
     buoyancy = buoyancy * parcel%buoyancy_multiplier
-    ! buoyancy = buoyancy * 2.0
     parcel%buoyancy = buoyancy
     a_prime = buoyancy * gravity ! Acceleration
+
+    ! displacement = v_{i-1} * t + 1/2 * a * dt * dt
     z_displacement = parcel%velocity * dt + 0.5 * a_prime * dt * dt
 
-    associate (A => dz%data_3d) ! was always 500
+    ! velocity equation: v_i = v_{i-1} + a*t
+    ! setting velocity for next time step
+    parcel%velocity = parcel%velocity + buoyancy * gravity * dt
+    parcel%velocity = parcel%velocity * (1 - parcel_friction)
+
+
+    associate (A => dz%data_3d)
         dz_val = trilinear_interpolation(x, x0, x1, z, z0, z1, y, y0, y1, &
             A(x0,z0,y0), A(x0,z0,y1), A(x0,z1,y0), A(x1,z0,y0), &
             A(x0,z1,y1), A(x1,z0,y1), A(x1,z1,y0), A(x1,z1,y1))
@@ -327,8 +335,6 @@ contains
     if (z_displacement /= z_displacement) &
         call report_parcel_error("---NAN ERROR from z_displacement---")
 
-    ! print *, "WARNING:: buoyancy turned off"
-    ! ARTLESS TURNING THIS OFF ONLY WIND
     delta_z = (z_displacement) / dz_val
     parcel%z = parcel%z + delta_z
 
@@ -336,7 +342,7 @@ contains
        call report_parcel_error("---NAN ERROR from delta_z---")
 
     ! velocity equation: v_f = v_0 + a*t
-    parcel%velocity = parcel%velocity + buoyancy * dt
+    parcel%velocity = parcel%velocity + buoyancy * gravity * dt
 
     parcel%velocity = parcel%velocity * (1 - parcel_friction)
 
@@ -370,6 +376,7 @@ contains
     ! parcel%z = parcel%z + (parcel%w * wind_correction)
     ! z_displacement = z_displacement + parcel%w
     wind_correction = (dt*1.0 / (dx_val ))
+    ! wind_correction = wind_correction * 2
     parcel%x = parcel%x + (parcel%u * wind_correction)
     parcel%y = parcel%y + (parcel%v * wind_correction)
 

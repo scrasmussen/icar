@@ -267,7 +267,8 @@ subroutine convect(domain,options,dt_in)
     type(options_t), intent(in)    :: options
     real, intent(in) :: dt_in
 
-    integer :: j,itimestep,STEPCU, dx_factor_nsas
+    integer :: i, j, itimestep, STEPCU, dx_factor_nsas, dt_n
+    real :: max_dt, parcel_dt
     real :: internal_dt
 
     if (options%physics%convection==0) return
@@ -276,14 +277,25 @@ subroutine convect(domain,options,dt_in)
     STEPCU = 1
 
     if (options%physics%convection==kCU_PARCEL) then
-        call cu_parcel_physics(&
-            domain%parcels, domain%grid, domain%z_interface, domain%z, &
-            domain%temperature, domain%potential_temperature, domain%pressure, &
-            domain%u, domain%v, domain%w, &
-            dt_in, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
-            ! 1., domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
-            domain%rain_mass)
-            ! TODO: TIMESTEP
+        max_dt = 10.0
+        dt_n = 1
+
+        if (dt_in > max_dt) then
+            dt_n = floor(dt_in / max_dt)
+            parcel_dt = max_dt
+        else
+            parcel_dt = dt_in
+        end if
+
+        do i=1,dt_n
+            call cu_parcel_physics(&
+                domain%parcels, domain%grid, domain%z_interface, domain%z, &
+                domain%temperature, domain%potential_temperature, domain%pressure, &
+                domain%u, domain%v, domain%w, &
+                ! dt_in, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
+                parcel_dt, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
+                domain%rain_mass)
+        end do
         return
     end if
 
