@@ -90,7 +90,8 @@ module linear_theory_winds
     !! Linear wind look up table values and tables
     real, allocatable,          dimension(:)           :: dir_values, nsq_values, spd_values
     ! Look Up Tables for linear perturbation are nspd x n_dir_values x n_nsq_values x nx x nz x ny
-    real, allocatable,          dimension(:,:,:,:,:,:) :: hi_u_LUT[:], hi_v_LUT[:] !, rev_u_LUT, rev_v_LUT
+    ! real, allocatable,          dimension(:,:,:,:,:,:) :: hi_u_LUT[:], hi_v_LUT[:] !, rev_u_LUT, rev_v_LUT
+    real, allocatable,          dimension(:,:,:,:,:,:) :: hi_u_LUT, hi_v_LUT ! no co-array to see if this pleases the cray compiler
     ! real, pointer,              dimension(:,:,:,:,:,:) :: u_LUT, v_LUT
     real, allocatable,          dimension(:,:)         :: linear_mask, nsq_calibration
 
@@ -277,6 +278,12 @@ contains
     end subroutine linear_perturbation_constz
 
 
+
+    ! call linear_perturbation(u, v, exp(nsq_values(j)),                                                                      &
+    !                             domain%global_z_interface(:,z,:) - domain%global_terrain,                                      & ! elevation for the top and bottom bound of a layer
+    !                             domain%global_z_interface(:,z,:) - domain%global_terrain + domain%global_dz_interface(:,z,:),  &
+    !                             minimum_layer_size, domain%terrain_frequency, lt_data_m)
+
     subroutine linear_perturbation_varyingz(U, V, Nsq, z_bottom, z_top, minimum_step, fourier_terrain, lt_data)
         use, intrinsic :: iso_c_binding
         implicit none
@@ -316,6 +323,10 @@ contains
         step_size = min(minimum_step, minval(z_top - z_bottom))
         if (step_size < 5) then
             if (this_image()==1) write(*,*) "WARNING: Very small vertical step size in linear winds, check layer thicknesses in output"
+            if (this_image()==1 ) write(*,*) "   min step=", minimum_step
+            if (this_image()==1 ) write(*,*) "   minval(z_top - z_bottom))", minval(z_top - z_bottom)
+            if (this_image()==1 ) write(*,*) "   minval(z_top)", minval(z_top)
+            if (this_image()==1 ) write(*,*) "   minval(z_bottom))", minval(z_bottom)
         endif
 
         current_z = start_z + step_size/2 ! we want the value in the middle of each theoretical layer
@@ -661,8 +672,10 @@ contains
 
         ! Allocate the (LARGE) look up tables for both U and V
         if (.not.options%lt_options%read_LUT) then
-            allocate(hi_u_LUT(n_spd_values, n_dir_values, n_nsq_values, nxu, nz, ny)[*], source=0.0)
-            allocate(hi_v_LUT(n_spd_values, n_dir_values, n_nsq_values, nx,  nz, nyv)[*], source=0.0)
+            ! allocate(hi_u_LUT(n_spd_values, n_dir_values, n_nsq_values, nxu, nz, ny)[*], source=0.0)
+            ! allocate(hi_v_LUT(n_spd_values, n_dir_values, n_nsq_values, nx,  nz, nyv)[*], source=0.0)
+            allocate(hi_u_LUT(n_spd_values, n_dir_values, n_nsq_values, nxu, nz, ny), source=0.0)  ! Cray coarray disable
+            allocate(hi_v_LUT(n_spd_values, n_dir_values, n_nsq_values, nx,  nz, nyv), source=0.0)
             error=0
         else
             if (this_image()==1) write(*,*) "    Reading LUT from file: ", trim(LUT_file)
@@ -672,9 +685,9 @@ contains
                 if (this_image()==1) write(*,*) "WARNING: LUT on disk does not match that specified in the namelist or does not exist."
                 if (this_image()==1) write(*,*) "    LUT will be recreated"
                 if (allocated(hi_u_LUT)) deallocate(hi_u_LUT)
-                allocate(hi_u_LUT(n_spd_values, n_dir_values, n_nsq_values, nxu, nz, ny)[*], source=0.0)
+                allocate(hi_u_LUT(n_spd_values, n_dir_values, n_nsq_values, nxu, nz, ny), source=0.0)
                 if (allocated(hi_v_LUT)) deallocate(hi_v_LUT)
-                allocate(hi_v_LUT(n_spd_values, n_dir_values, n_nsq_values, nx,  nz, nyv)[*], source=0.0)
+                allocate(hi_v_LUT(n_spd_values, n_dir_values, n_nsq_values, nx,  nz, nyv), source=0.0)
             endif
         endif
 
@@ -737,9 +750,10 @@ contains
 
                     if (options%parameters%space_varying_dz) then
 
+                        if(this_image()==1 .and. options%parameters%debug) write(*,*) "  z = ", z
                         ! call update_irregular_grid(u,v, nsq_values(j), z, domain, minimum_layer_size)
                         call linear_perturbation(u, v, exp(nsq_values(j)),                                                                      &
-                                                 domain%global_z_interface(:,z,:) - domain%global_terrain,                                      &
+                                                 domain%global_z_interface(:,z,:) - domain%global_terrain,                                      &  ! =0 zero for z=1
                                                  domain%global_z_interface(:,z,:) - domain%global_terrain + domain%global_dz_interface(:,z,:),  &
                                                  minimum_layer_size, domain%terrain_frequency, lt_data_m)
 
@@ -771,8 +785,8 @@ contains
                                 ( lt_data_m%v_perturb(1+buffer:fftnx-buffer,     buffer:fftny-buffer)         &
                                 + lt_data_m%v_perturb(1+buffer:fftnx-buffer,     1+buffer:fftny-buffer+1)) )) / 2
 
-                        call copy_data_to_remote(temporary_u, u_grids, hi_u_LUT, i,j,k, z)
-                        call copy_data_to_remote(temporary_v, v_grids, hi_v_LUT, i,j,k, z)
+                        ! call copy_data_to_remote(temporary_u, u_grids, hi_u_LUT, i,j,k, z)  ! Commented out bc cray compile
+                        ! call copy_data_to_remote(temporary_v, v_grids, hi_v_LUT, i,j,k, z)
 
                     else
                         stop "ERROR: linear wind LUT creation not set up for non-staggered grids yet"
