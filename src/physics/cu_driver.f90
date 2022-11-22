@@ -295,6 +295,8 @@ subroutine convect(domain,options,dt_in)
                 ! dt_in, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
                 parcel_dt, domain%dz_interface, domain%dx, domain%water_vapor, domain%cloud_water_mass, &
                 domain%rain_mass)
+            if (i .ne. dt_n) &
+                call domain%parcels%retrieve()
         end do
         return
     end if
