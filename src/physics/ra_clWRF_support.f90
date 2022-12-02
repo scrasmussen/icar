@@ -12,6 +12,8 @@
 MODULE module_ra_clWRF_support
 
   !USE module_wrf_error
+  use iso_fortran_env, only: iostat_end
+   
 
   IMPLICIT NONE
   PRIVATE
@@ -124,11 +126,14 @@ CONTAINS
     INTEGER                                   :: my1,my2,my3, tot_valid
 
 ! CLWRF-UC June.09  (Copy from share/wrf_tsin.F)
+
+   !  READtrFILE=.FALSE.
+   !  istatus = 0 ! otherwise cray-compiled ICAR complains 
+    
     IF ( .NOT. READtrFILE ) THEN
        READtrFILE= .TRUE.
-
+       
        INQUIRE(FILE='CAMtr_volume_mixing_ratio', EXIST=exists)
-
        IF (exists) THEN
           !iunit = get_unused_unit()
           iunit = io_newunit()
@@ -139,21 +144,24 @@ CONTAINS
              !END IF
           END IF
 
+          
           ! Read volume mixing ratio
           OPEN(UNIT=iunit, FILE='CAMtr_volume_mixing_ratio', FORM='formatted', &
-               STATUS='old', IOSTAT=istatus)
-
+               STATUS='old', IOSTAT=istatus) 
+   
           IF (istatus == 0) THEN
              ! Ignore first two lines which constitute a header
              READ(UNIT=iunit, FMT='(1X)')
              READ(UNIT=iunit, FMT='(1X)')
 
-             istatus = 0
+             istatus = 0 
              idata = 1
              DO WHILE (istatus == 0)
-                READ(UNIT=iunit, FMT='(I4, 1x, F8.3,1x, 4(F10.3,1x))', IOSTAT=istatus)    &
+
+                READ(UNIT=iunit, FMT='(I4, 1x, F8.3,1x, 4(F10.3,1x))', IOSTAT=istatus)    &  ! this returns -4001 (on cray)
                      yrdata(idata), co2r(idata), n2or(idata), ch4r(idata), cfc11r(idata), &
                      cfc12r(idata)
+
                 if (istatus==0) then
                     !IF ( wrf_dm_on_monitor() ) THEN
                     if (idata==1) then
@@ -170,8 +178,13 @@ CONTAINS
                 endif
              END DO
              if (this_image()==1) print*,"CLWRF read:",idata-1, " lines"
-
-             IF (istatus /= -1) THEN
+             
+            !  if (istatus==-4001) then  ! CRAY COMPILER gives -4001 i.s.o. -1 ??
+            !    istatus = -1
+               ! if (this_image()==1)  print *, "IOSTAT=-4001, setting it to -1"
+            !  endif
+            !  IF (istatus /= -1) THEN
+             IF (istatus /= iostat_end) then  
                 PRINT *,'CLWRF -- clwrf -- CLWRF ALERT!'
                 PRINT *,"   Not normal ending of 'CAMtr_volume_mixing_ratio' file"
                 PRINT *,"   Lecture ends with 'IOSTAT'=",istatus
