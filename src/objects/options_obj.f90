@@ -60,7 +60,6 @@ contains
         call parameters_namelist(   options_filename,   this%parameters)
         call output_namelist(       options_filename,   this%output_options)
         call model_levels_namelist( options_filename,   this%parameters)
-
         call lt_parameters_namelist(    this%parameters%lt_options_filename,    this)
         call block_parameters_namelist( this%parameters%block_options_filename, this)
         call mp_parameters_namelist(    this%parameters%mp_options_filename,    this)
@@ -282,7 +281,7 @@ contains
         type(parameter_options_type),intent(inout)  :: options
 
         character(len=MAXVARLENGTH) :: version,comment
-        integer                     :: name_unit
+        integer                     :: name_unit, ierr
 
         namelist /model_version/ version,comment
 
@@ -292,7 +291,8 @@ contains
 
         ! read namelists
         open(io_newunit(name_unit), file=filename)
-        read(name_unit,nml=model_version)
+        read(name_unit, nml=model_version, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
         if (version.ne.kVERSION_STRING) then
@@ -484,6 +484,7 @@ contains
         integer :: restart_step                         ! time step relative to the start of the restart file
         integer :: restart_date(6)                      ! date to restart
         integer :: name_unit                            ! logical unit number for namelist
+        integer :: ierr
         type(Time_type) :: restart_time, time_at_step   ! restart date as a modified julian day
         real :: input_steps_per_day                     ! number of input time steps per day (for calculating restart_time)
 
@@ -493,7 +494,8 @@ contains
         restart_step=-999
 
         open(io_newunit(name_unit), file=filename)
-        read(name_unit,nml=restart_info)
+        read(name_unit,nml=restart_info, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
         if (minval(restart_date)<0) then
@@ -554,7 +556,7 @@ contains
 
         integer :: name_unit
 !       variables to be used in the namelist
-        integer :: pbl, lsm, water, mp, rad, conv, adv, wind
+        integer :: pbl, lsm, water, mp, rad, conv, adv, wind, ierr
 
 !       define the namelist
         namelist /physics/ pbl, lsm, water, mp, rad, conv, adv, wind
@@ -600,7 +602,8 @@ contains
 
 !       read the namelist
         open(io_newunit(name_unit), file=filename)
-        read(name_unit,nml=physics)
+        read(name_unit,nml=physics, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
 !       store options
@@ -647,6 +650,7 @@ contains
 
         integer :: name_unit, i, j, status
         real    :: outputinterval, restartinterval
+        integer :: ierr
 
         character(len=kMAX_FILE_LENGTH) :: output_file, restart_file
         character(len=kMAX_NAME_LENGTH) :: names(kMAX_STORAGE_VARS)
@@ -662,7 +666,8 @@ contains
         restartinterval     =  24 ! in units of outputintervals
 
         open(io_newunit(name_unit), file=filename)
-        read(name_unit, nml=output_list)
+        read(name_unit, nml=output_list, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
         do j=1, kMAX_STORAGE_VARS
@@ -720,6 +725,7 @@ contains
         character(len=*),             intent(in)    :: filename
         type(parameter_options_type), intent(inout) :: options
         integer :: name_unit, i, j
+        integer :: ierr
         character(len=MAXVARLENGTH) :: landvar,lakedepthvar,latvar,lonvar,uvar,ulat,ulon,vvar,vlat,vlon,zvar,zbvar,  &
                                         hgt_hi,lat_hi,lon_hi,ulat_hi,ulon_hi,vlat_hi,vlon_hi,           &
                                         pvar,pbvar,tvar,qvvar,qcvar,qivar,qrvar,qgvar,qsvar,hgtvar,shvar,lhvar,pblhvar,   &
@@ -806,7 +812,8 @@ contains
         time_ext = ""
 
         open(io_newunit(name_unit), file=filename)
-        read(name_unit,nml=var_list)
+        read(name_unit,nml=var_list, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
         call require_var(lonvar, "Longitude")
@@ -970,6 +977,7 @@ contains
         type(parameter_options_type), intent(inout) :: options
 
         integer :: name_unit
+        integer :: ierr
         type(time_delta_t) :: dt
         ! parameters to read
 
@@ -1083,7 +1091,8 @@ contains
         block_options_filename = filename
 
         open(io_newunit(name_unit), file=filename)
-        read(name_unit,nml=parameters)
+        read(name_unit,nml=parameters, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
         if (ideal) then
@@ -1248,6 +1257,7 @@ contains
         character(len=*),   intent(in)    :: mp_filename
         type(options_t),    intent(inout) :: options
         integer :: name_unit
+        integer :: ierr
 
         real    :: Nt_c, TNO, am_s, rho_g, av_s, bv_s, fv_s, av_g, bv_g, av_i
         real    :: Ef_si, Ef_rs, Ef_rg, Ef_ri
@@ -1300,7 +1310,8 @@ contains
         ! read in the namelist
         if (options%parameters%use_mp_options) then
             open(io_newunit(name_unit), file=mp_filename)
-            read(name_unit, nml=mp_parameters)
+            read(name_unit, nml=mp_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
@@ -1347,6 +1358,7 @@ contains
         type(options_t),    intent(inout):: options
 
         integer :: name_unit
+        integer :: ierr
 
         real    :: blocking_contribution  ! fractional contribution of flow blocking perturbation that is added [0-1]
         real    :: smooth_froude_distance ! distance (m) over which Froude number is smoothed
@@ -1382,7 +1394,8 @@ contains
         ! read the namelist options
         if (options%parameters%use_block_options) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=block_parameters)
+            read(name_unit,nml=block_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
@@ -1410,7 +1423,9 @@ contains
         character(len=*),   intent(in)   :: filename
         type(options_t),    intent(inout):: options
 
+        type(lt_options_type)::lt_options
         integer :: name_unit
+        integer :: ierr
 
         integer :: vert_smooth
         logical :: variable_N           ! Compute the Brunt Vaisala Frequency (N^2) every time step
@@ -1498,64 +1513,68 @@ contains
         v_LUT_Filename = "MISSING"
         LUT_Filename   = "MISSING"
         overwrite_lt_lut = .True.
-
+        
         ! read the namelist options
         if (options%parameters%use_lt_options) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=lt_parameters)
+            read(name_unit, nml=lt_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
         ! store everything in the lt_options structure
-        associate(opt => options%lt_options )
-            opt%buffer = buffer
-            opt%stability_window_size = stability_window_size
-            opt%max_stability = max_stability
-            opt%min_stability = min_stability
-            opt%variable_N = variable_N
-            opt%smooth_nsq = smooth_nsq
+        ! associate(opt => options%lt_options )
+        lt_options%buffer = buffer
+        lt_options%stability_window_size = stability_window_size
+        lt_options%max_stability = max_stability
+        lt_options%min_stability = min_stability
+        lt_options%variable_N = variable_N
+        lt_options%smooth_nsq = smooth_nsq
 
-            if (vert_smooth<0) then
-                write(*,*) " Vertical smoothing must be a positive integer"
-                write(*,*) " vert_smooth = ",vert_smooth
-                stop
+        if (vert_smooth<0) then
+            write(*,*) " Vertical smoothing must be a positive integer"
+            write(*,*) " vert_smooth = ",vert_smooth
+            stop
+        endif
+        lt_options%vert_smooth=vert_smooth
+
+        lt_options%N_squared = N_squared
+        lt_options%linear_contribution = linear_contribution
+        lt_options%remove_lowres_linear = remove_lowres_linear
+        lt_options%rm_N_squared = rm_N_squared
+        lt_options%rm_linear_contribution = rm_linear_contribution
+        lt_options%linear_update_fraction = linear_update_fraction
+        lt_options%spatial_linear_fields = spatial_linear_fields
+        lt_options%linear_mask = linear_mask
+        lt_options%nsq_calibration = nsq_calibration
+        lt_options%dirmax = dirmax
+        lt_options%dirmin = dirmin
+        lt_options%spdmax = spdmax
+        lt_options%spdmin = spdmin
+        lt_options%nsqmax = nsqmax
+        lt_options%nsqmin = nsqmin
+        lt_options%n_dir_values = n_dir_values
+        lt_options%n_nsq_values = n_nsq_values
+        lt_options%n_spd_values = n_spd_values
+        lt_options%minimum_layer_size = minimum_layer_size
+        lt_options%read_LUT = read_LUT
+        lt_options%write_LUT = write_LUT
+        if (trim(u_LUT_Filename)=="MISSING") then
+            if (trim(LUT_Filename)=="MISSING") then
+                u_LUT_Filename="Linear_Theory_LUT.nc"
+            else
+                u_LUT_Filename=LUT_Filename
             endif
-            opt%vert_smooth=vert_smooth
+        endif
 
-            opt%N_squared = N_squared
-            opt%linear_contribution = linear_contribution
-            opt%remove_lowres_linear = remove_lowres_linear
-            opt%rm_N_squared = rm_N_squared
-            opt%rm_linear_contribution = rm_linear_contribution
-            opt%linear_update_fraction = linear_update_fraction
-            opt%spatial_linear_fields = spatial_linear_fields
-            opt%linear_mask = linear_mask
-            opt%nsq_calibration = nsq_calibration
-            opt%dirmax = dirmax
-            opt%dirmin = dirmin
-            opt%spdmax = spdmax
-            opt%spdmin = spdmin
-            opt%nsqmax = nsqmax
-            opt%nsqmin = nsqmin
-            opt%n_dir_values = n_dir_values
-            opt%n_nsq_values = n_nsq_values
-            opt%n_spd_values = n_spd_values
-            opt%minimum_layer_size = minimum_layer_size
-            opt%read_LUT = read_LUT
-            opt%write_LUT = write_LUT
-            if (trim(u_LUT_Filename)=="MISSING") then
-                if (trim(LUT_Filename)=="MISSING") then
-                    u_LUT_Filename="Linear_Theory_LUT.nc"
-                else
-                    u_LUT_Filename=LUT_Filename
-                endif
-            endif
+        lt_options%u_LUT_Filename = u_LUT_Filename
+        lt_options%v_LUT_Filename = v_LUT_Filename
+        lt_options%overwrite_lt_lut = overwrite_lt_lut
+    ! end associate
+    
+    ! copy the data back into the global options data structure
+    options%lt_options = lt_options
 
-            opt%u_LUT_Filename = u_LUT_Filename
-            opt%v_LUT_Filename = v_LUT_Filename
-            opt%overwrite_lt_lut = overwrite_lt_lut
-
-        end associate
 
     end subroutine lt_parameters_namelist
 
@@ -1573,6 +1592,7 @@ contains
 
         type(adv_options_type)::adv_options
         integer :: name_unit
+        integer :: ierr
 
         logical :: boundary_buffer          ! apply some smoothing to the x and y boundaries in MPDATA
         logical :: flux_corrected_transport ! use the flux corrected transport option in MPDATA
@@ -1597,7 +1617,8 @@ contains
         ! read the namelist options
         if (options%parameters%use_adv_options) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=adv_parameters)
+            read(name_unit,nml=adv_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
@@ -1624,10 +1645,11 @@ contains
 
         type(cu_options_type) :: cu_options
         integer :: name_unit
+        integer :: ierr
 
         real :: tendency_fraction, tend_qv_fraction, tend_qc_fraction, tend_th_fraction, tend_qi_fraction
         real :: stochastic_cu
-
+        
 
         ! define the namelist
         namelist /cu_parameters/ tendency_fraction, tend_qv_fraction, tend_qc_fraction, tend_th_fraction, tend_qi_fraction, &
@@ -1652,7 +1674,8 @@ contains
         ! read the namelist options
         if (options%parameters%use_cu_options) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=cu_parameters)
+            read(name_unit,nml=cu_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
@@ -1687,7 +1710,7 @@ contains
         type(options_t),    intent(inout)::options
         integer, intent(inout) :: urban_category, ice_category, water_category, lake_category
         character(len=MAXVARLENGTH), intent(in) :: LU_Categories
-
+        
         if (trim(LU_Categories)=="MODIFIED_IGBP_MODIS_NOAH") then
             if (urban_category==-1) urban_category = 13
             if (ice_category==-1)   ice_category = 15
@@ -1743,6 +1766,7 @@ contains
 
         type(bias_options_type)     ::  bias_options
         integer :: name_unit
+        integer :: ierr
 
         character(len=MAXFILELENGTH):: bias_correction_filename ! file containing bias correction data
         character(len=MAXVARLENGTH) :: rain_fraction_var        ! name of variable containing the fraction to multiply rain by
@@ -1765,7 +1789,8 @@ contains
         ! read the namelist options
         if (options%parameters%use_bias_correction) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=bias_parameters)
+            read(name_unit,nml=bias_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
@@ -1806,6 +1831,7 @@ contains
         integer :: ice_category                      ! index that defines the ice category in LU_Categories
         integer :: water_category                    ! index that defines the water category in LU_Categories
         integer :: lake_category                    ! index that defines the lake category in (some) LU_Categories
+        integer :: ierr   ! error code for nml reading
 
         ! define the namelist
         namelist /lsm_parameters/ LU_Categories, lh_feedback_fraction, sh_feedback_fraction, update_interval, &
@@ -1840,14 +1866,15 @@ contains
         wind_enhancement = 1.5
 
         max_swe = 1e10
-
+        ! if(this_image()==1) write(*,*) "   monthly_albedo (default):", monthly_albedo
         ! read the namelist options
         if (options%parameters%use_lsm_options) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=lsm_parameters)
+            read(name_unit, nml=lsm_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
-
+        ! if(this_image()==1) write(*,*) "   monthly_albedo (nml):", monthly_albedo
         call set_default_LU_categories(options, urban_category, ice_category, water_category, LU_Categories, lake_category)
 
         ! store everything in the lsm_options structure
@@ -1865,7 +1892,6 @@ contains
         lsm_options%dz_lsm_modification  = dz_lsm_modification
         lsm_options%wind_enhancement     = wind_enhancement
         lsm_options%max_swe              = max_swe
-
         ! copy the data back into the global options data structure
         options%lsm_options = lsm_options
     end subroutine lsm_parameters_namelist
@@ -1888,6 +1914,8 @@ contains
         integer :: icloud                            ! how RRTMG interacts with clouds
         logical :: read_ghg
         logical :: use_simple_sw
+        integer :: ierr
+
         ! define the namelist
         namelist /rad_parameters/ update_interval_rrtmg, icloud, read_ghg, use_simple_sw
 
@@ -1909,7 +1937,8 @@ contains
         ! read the namelist options
         if (options%parameters%use_rad_options) then
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=rad_parameters)
+            read(name_unit, nml=rad_parameters, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
         endif
 
@@ -1943,6 +1972,7 @@ contains
 
         real :: flat_z_height, decay_rate_L_topo, decay_rate_S_topo, sleve_n
         integer :: terrain_smooth_windowsize, terrain_smooth_cycles
+        integer :: ierr
 
         namelist /z_info/ dz_levels, space_varying, dz_modifies_wind, flat_z_height, fixed_dz_advection, sleve, terrain_smooth_windowsize, terrain_smooth_cycles, decay_rate_L_topo, decay_rate_S_topo, sleve_n, use_terrain_difference
 
@@ -1965,7 +1995,8 @@ contains
             dz_levels=-999
 
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=z_info)
+            read(name_unit,nml=z_info, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
 
             ! if nz wasn't specified in the namelist, we assume a HUGE number of levels
@@ -2089,7 +2120,7 @@ contains
                                         linear_mask_file, nsq_calibration_file, external_files
 
         character(len=MAXFILELENGTH), allocatable :: boundary_files(:), ext_wind_files(:)
-        integer :: name_unit, nfiles, i
+        integer :: name_unit, nfiles, i , ierr
 
         ! set up namelist structures
 
@@ -2106,7 +2137,8 @@ contains
         external_files="MISSING"
 
         open(io_newunit(name_unit), file=filename)
-        read(name_unit,nml=files_list)
+        read(name_unit,nml=files_list, iostat=ierr)
+        if (ierr .ne. 0)  print *, "ERROR:", ierr
         close(name_unit)
 
         options%external_files = external_files
@@ -2144,7 +2176,8 @@ contains
             allocate(ext_wind_files(options%ext_winds_nfiles))
 
             open(io_newunit(name_unit), file=filename)
-            read(name_unit,nml=ext_winds_info)
+            read(name_unit,nml=ext_winds_info, iostat=ierr)
+            if (ierr .ne. 0)  print *, "ERROR:", ierr
             close(name_unit)
 
             allocate(options%ext_wind_files(options%ext_winds_nfiles))
