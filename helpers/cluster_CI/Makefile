@@ -8,6 +8,6 @@ ci: cp_nml
 
 clean:
 	rm -f *~ complete_icar_options.nml icar_options.nml new_*_icar_options.nml
-	rm -f icar_gcm_test.tgz
+	rm -f icar_gcm_test.tgz summary.txt
 cleanall: clean
 	rm -rf icar_gcm_test
