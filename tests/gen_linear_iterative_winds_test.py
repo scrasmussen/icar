@@ -4,7 +4,7 @@ from netCDF4 import Dataset
 import numpy as np
 from sys import exit, path
 from os import getcwd
-path.insert(0, getcwd()+'/../helpers/genNetCDF')
+path.insert(0, getcwd()+'/../helpers/generateTestFiles')
 import Topography as tg
 import Forcing as fc
 import ICARoptions as opt
