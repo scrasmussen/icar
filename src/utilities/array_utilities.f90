@@ -3,7 +3,7 @@ module array_utilities
     implicit none
 
     interface smooth_array
-        module procedure smooth_array_2d, smooth_array_3d
+        module procedure smooth_array_2d, smooth_array_3d!, smooth_array_3d_high_variation
     end interface
 
     interface array_offset_x
@@ -415,6 +415,133 @@ contains
 
         deallocate(inputwind)
     end subroutine smooth_array_3d
+
+    subroutine smooth_array_3d_high_variation(wind,windowsize,ydim,&
+        rowsums_start,rowsums_end,rowmeans_start,rowmeans_end)
+        implicit none
+        real, intent(inout), dimension(:,:,:):: wind    !> 3 dimensional wind field to be smoothed
+        integer,intent(in)::windowsize                  !> halfwidth-1/2 of window to smooth over
+                                                        ! Specified in grid cells, (+/- windowsize)
+        integer,intent(in)::ydim                        !> the dimension to use for the y coordinate
+                                                        ! It can be 2, or 3 (but not 1)
+
+        real,intent(in),dimension(:,:,:)::rowsums_start,rowsums_end,rowmeans_start,rowmeans_end
+        real,allocatable,dimension(:,:,:)::inputwind    !> temporary array to store the input data in
+        integer::i,j,k,nx,ny,nz,startx,endx,starty,endy ! various array indices/bounds
+
+        ! Intermediate sums to speed up the computation
+        ! Because these are accumulating values over the domain, use double precision
+        ! in practice this doesn't seem to matter.
+        double precision,allocatable,dimension(:) :: rowsums,rowmeans
+        double precision :: cursum
+        integer :: cur_n, curcol, ncols, nrows
+
+        ncols = windowsize * 2 + 1
+        nx = size(wind, 1)
+        ny = size(wind, 2) !note, this is Z for the high-res domain (ydim=3)
+        nz = size(wind, 3) !note, this could be the Y or Z dimension depending on ydim
+
+        ! allocate(inputwind(nx,ny,nz)) ! Can't be module level because nx,ny,nz could change between calls,
+        allocate(inputwind(&
+            -windowsize:nx+windowsize,&
+            -windowsize:ny+windowsize,&
+            -windowsize:nz+windowsize)) ! Can't be module level because nx,ny,nz could change between calls,
+        inputwind = -0.0
+        inputwind(1:nx,1:ny,1:nz) = wind !make a copy so we always use the unsmoothed data when computing the smoothed data
+        inputwind(1:nx,1:ny,-windowsize:0) = rowsums_start
+        ! THESE ARE ALL THE SAME AS I AM TESTING FOR COMPARISON RIGHT NOW
+        ! if (this_image() == 9) then
+        !     print *, "UTES 1s",inputwind(1:nx,4,1)
+        !     print *, "UTES 0s",inputwind(1:nx,4,0)
+        !     print *, "UTES-1s",inputwind(1:nx,4,-1)
+        !     print *, "UTES-2s",inputwind(1:nx,4,-2)
+        ! end if
+        ! sync all
+        ! stop "ADFDD"
+
+
+        allocate(rowsums(nx)) !this is only used when ydim=3, so nz is really ny
+        allocate(rowmeans(nx)) !this is only used when ydim=3, so nz is really ny
+        nrows = windowsize * 2 + 1
+        ncols = windowsize * 2 + 1
+
+        !$omp do schedule(static)
+        rowsums = 0
+        do j=1,ny  ! NZ
+            ! so we pre-compute the sum over rows for each column in the current window
+            if (ydim==3) then
+                ! start by adding the outer row n+2 times
+                ! effectively assumes it was set up for the grid cell before the first grid cell
+                ! the first time through the loop will remove one iteration of outer row grid cells
+                rowsums = inputwind(1:nx,j,1) * (windowsize+2)  ! 1.1
+                do i=2, min(windowsize,nz)
+                    rowsums = rowsums + inputwind(1:nx, j, i)   ! 1.2
+                enddo
+                ! TODO: NEED TO HANDLE THIS CASE
+                ! if (windowsize > nz) then ! NY
+                !     rowsums = rowsums + inputwind(1:nx,j,nz) * (windowsize-nz)
+                ! endif
+            endif
+            do k=1,nz ! NY    note this is y for ydim=3
+                starty  = max(2, k - windowsize)
+                endy    = min(nz, k + windowsize)
+                rowsums = rowsums - inputwind(1:nx, j, starty-1) + inputwind(1:nx, j, endy)
+            end do
+        end do
+        if (this_image() == 9) then
+        print *, "-----------"
+        print *, "THEIRS:", rowsums(:)
+        print *, "----"
+        end if
+        do j=1,ny  ! NZ
+            rowsums = 0 ! NEED TO REMOVE THIS LATER ?
+            do k=-windowsize, min(windowsize,nz) ! NY    note this is y for ydim=3
+                ! EQUALS THEIRS @ 1.1 when k to 1, EQUALS 1.2 when k to min
+                rowsums(:) = rowsums(:) + inputwind(1:nx, j, k)
+            end do
+            ! if (windowsize > nz) then ! THIS NEEDS TO BE FIXED IN THE FUTURE, THIS IS inputwind(1:nx,j,nz:nz+windowsize)
+            !     rowsums = rowsums + inputwind(1:nx,j,nz) * (windowsize-nz) ! this need
+            ! endif
+            do k=1,nz ! NY    note this is y for ydim=3
+                starty  = max(2, k - windowsize)
+                endy    = k + windowsize
+                rowsums = rowsums - inputwind(1:nx, j, starty-1) + inputwind(1:nx, j, endy)
+            end do
+        end do
+        if (this_image() == 9) then
+            print *, "MINES :", rowsums(:)
+        end if
+        sync all
+        stop "HERE OK"
+
+        rowsums = 0
+        do j=1,ny  ! NZ
+            do k=1,nz !+windowsize ! NY    note this is y for ydim=3
+                rowsums = rowsums - inputwind(1:nx, j, starty-1) + inputwind(1:nx, j, endy)
+
+                ! start by adding the outer row n+2 times
+                ! effectively assumes it was set up for the grid cell before the first grid cell
+                ! the first time through the loop will remove one iteration of outer row grid cells
+                rowmeans = rowsums / nrows
+                cursum = sum(rowmeans(2:windowsize)) + rowmeans(1) * (windowsize+2)
+
+                do i=1,nx
+                    startx = max(2, i - windowsize)
+                    endx   = min(nx, i + windowsize)
+                    cursum = cursum - rowmeans(startx-1) + rowmeans(endx)
+
+                    wind(i,j,k) = cursum / ncols
+                enddo
+            enddo
+        enddo
+        !$omp end do
+        deallocate(rowmeans,rowsums)
+        !$omp end parallel
+
+        deallocate(inputwind)
+    end subroutine smooth_array_3d_high_variation
+
+
 
     subroutine smooth_array_2d(input,windowsize)
         implicit none
