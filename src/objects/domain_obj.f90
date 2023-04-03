@@ -1,3 +1,9 @@
+                ! do ii=1,num_images()
+                !     if (ii == this_image()) then
+                !     end if
+                !     sync all
+                ! end do
+
 !>------------------------------------------------------------
 !!  Implementation of domain object
 !!
@@ -15,18 +21,21 @@ submodule(domain_interface) domain_implementation
     use co_util,              only : broadcast
     use io_routines,          only : io_read, io_write
     use geo,                  only : geo_lut, geo_interp, geo_interp2d, standardize_coordinates
-    use array_utilities,      only : array_offset_x, array_offset_y, smooth_array, make_2d_x, make_2d_y
+    use array_utilities,      only : array_offset_x, array_offset_y, smooth_array, make_2d_x, make_2d_y, &
+        smooth_array_3d_high_variation
     use vertical_interpolation,only : vinterp, vLUT
+    use foo_writer_mod
 
     implicit none
 
     interface setup
         module procedure setup_var, setup_exch
-    end interface
+    end interface setup
+
+    logical, parameter :: end = .false.
 
     ! primary public routines : init, get_initial_conditions, halo_send, halo_retrieve, or halo_exchange
 contains
-
 
     !> -------------------------------
     !! Initialize the size of the domain
@@ -72,10 +81,17 @@ contains
       ! create geographic lookup table for domain
       call setup_geo_interpolation(this, forcing, options)
 
+      ! print *, "TESTING @ IN GET_INITIAL CONTITIONS 1"  ! GOOOOD NO DATA
+      ! call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
+
       ! for all variables with a forcing_var /= "", get forcing, interpolate to local domain
       call this%interpolate_forcing(forcing)
+      print *, "TESTING @ IN GET_INITIAL CONTITIONS 2" ! BROKEN HERE !!!!!
+      call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
 
       call initialize_internal_variables(this, options)
+      print *, "TESTING @ IN GET_INITIAL CONTITIONS 3" ! BROKEN
+      call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
 
       this%model_time = forcing%current_time
 
@@ -531,11 +547,12 @@ contains
     !! Passing data between images and disk is handled by load_data
     !!
     !! ---------------------------------
-    subroutine read_core_variables(this, options)
+    subroutine read_core_variables(this, options)  ! FOO
         implicit none
         class(domain_t), intent(inout)  :: this
         type(options_t), intent(in)     :: options
         real, allocatable :: temporary_data(:,:), temp_offset(:,:)
+        integer :: ii
 
         ! Read the terrain data
         call load_data(options%parameters%init_conditions_file,   &
@@ -568,8 +585,12 @@ contains
                        temporary_data, this%grid)
 
         call make_2d_y(temporary_data, this%grid%ims, this%grid%ime)
+        ! FOO: figure out where i
         this%latitude%data_2d = temporary_data(this%grid%ims:this%grid%ime, this%grid%jms:this%grid%jme)
         allocate(this%latitude_global, source=temporary_data)
+        ! looks good
+        ! call foo_writer(this%latitude%data_2d, this%grid%ximages)
+
 
         ! Read the longitude data
         call load_data(options%parameters%init_conditions_file,   &
@@ -585,18 +606,31 @@ contains
         ! If not, then read in mass grid lat/lon and stagger them
         !
         !-----------------------------------------
+        ! [X] FOO: look here
         ! Read the u-grid longitude data if specified, other wise interpolate from mass grid
         if (options%parameters%ulon_hi /= "") then
             call load_data(options%parameters%init_conditions_file,   &
                            options%parameters%ulon_hi,                &
                            temporary_data, this%u_grid)
-
+            ! temp data is all same here, 220 x 251
             call make_2d_y(temporary_data, 1, size(this%global_terrain,2))
+            ! temp data is all same here, 220 x 251
+
             call subset_array(temporary_data, this%u_longitude%data_2d, this%u_grid)
+            ! u_long looks good individually
+            ! call foo_writer(this%u_longitude%data_2d, this%grid%ximages)
+
+            ! print *, "INVESTIGATING SUBSET U_LON GRID"
+            ! call foo_writer(this%u_longitude%data_2d(&
+            !     this%u_grid%its:this%u_grid%ite, &
+            !     this%u_grid%jts:this%u_grid%jte &
+            !     ), this%grid%ximages)
 
             associate(g=>this%u_grid2d_ext, var=>this%geo_u%lon)
                 allocate(this%geo_u%lon(1:g%ime-g%ims+1, 1:g%jme-g%jms+1))
                 call subset_array(temporary_data, this%geo_u%lon, g)
+                ! individually looks good
+                ! call foo_writer(this%geo_u%lon, this%grid%ximages)
             end associate
         else
             ! load the mass grid data again to get the full grid
@@ -607,9 +641,14 @@ contains
             call make_2d_y(temporary_data, 1, size(this%global_terrain,2))
             call array_offset_x(temporary_data, temp_offset)
             call subset_array(temp_offset, this%u_longitude%data_2d, this%u_grid)
+            ! u_long looks good
+            ! call foo_writer(this%u_longitude%data_2d, this%grid%ximages)
+
             associate(g=>this%u_grid2d_ext, var=>this%geo_u%lon)
                 allocate(this%geo_u%lon(1:g%ime-g%ims+1, 1:g%jme-g%jms+1))
                 call subset_array(temp_offset, this%geo_u%lon, g)
+                ! individually looks good
+                ! call foo_writer(this%geo_u%lon, this%grid%ximages)
             end associate
         endif
 
@@ -621,22 +660,47 @@ contains
 
             call make_2d_x(temporary_data, 1, size(this%global_terrain,1)+1)
             call subset_array(temporary_data, this%u_latitude%data_2d, this%u_grid)
+            ! print *, "INVESTIGATING SUBSET U_LAT GRID"
+            ! call foo_writer(this%u_latitude%data_2d(&
+            !     this%u_grid%its:this%u_grid%ite, &
+            !     this%u_grid%jts:this%u_grid%jte &
+            !     ), this%grid%ximages)
+
+
             associate(g=>this%u_grid2d_ext, var=>this%geo_u%lat)
                 allocate(this%geo_u%lat(1:g%ime-g%ims+1, 1:g%jme-g%jms+1))
                 call subset_array(temporary_data, this%geo_u%lat, g)
+
+                ! print *, "TESTING @  u_grid lat data || ime ims= ", g%ime-g%ims
+                ! ! print *, "SHAPE @ GEO_u image", this_image(), ":", shape(this%geo_u%lat)
+
+                ! ! call foo_writer(this%geo_u%lat(:,:), this%grid%ximages)
+                ! sync all
+                ! ! this%geo_u%lat(:,:) = this_image()
+                ! call foo_writer(this%geo_u%lat(1:this%grid%ime-this%grid%ims,&
+                !     1:this%u_grid%jme-this%grid%jms), this%grid%ximages)
+                ! call foo_writer(this%geo_u%lat(1:this%grid%ime-this%grid%ims,&
+                !     1:this%u_grid%jme-this%grid%jms), this%grid%ximages)
             end associate
         else
             ! load the mass grid data again to get the full grid
             call load_data(options%parameters%init_conditions_file,   &
                            options%parameters%lat_hi,                 &
                            temporary_data, this%grid)
-
             call make_2d_x(temporary_data, 1, size(this%global_terrain,1)+1)
+
             call array_offset_x(temporary_data, temp_offset)
             call subset_array(temp_offset, this%u_latitude%data_2d, this%u_grid)
             associate(g=>this%u_grid2d_ext, var=>this%geo_u%lat)
                 allocate(this%geo_u%lat(1:g%ime-g%ims+1, 1:g%jme-g%jms+1))
                 call subset_array(temp_offset, this%geo_u%lat, g)
+
+                ! print *, "TESTING @  u_grid mass grid || ime ims= ", g%ime-g%ims
+                ! print *, "GRIDS::", this%u_grid%ims,":",this%u_grid%ime, "", &
+                !     this%u_grid%jms,":",this%u_grid%jme
+                ! sync all
+                ! call foo_writer(this%geo_u%lat(1:this%grid%ime-this%grid%ims,&
+                !     1:this%u_grid%jme-this%grid%jms), this%grid%ximages)
             end associate
 
         endif
@@ -766,7 +830,9 @@ contains
         ! this should only be necessary for border images
         if (grid%ims < 1) then
             do i=1,xs_out-1
-                if (do_extrapolate) then
+                if (do_extrapolate) then  ! [X] FOO: check if extrapolation is occurring
+                                          !     - [X] NO extrapolation
+                    print *, "---- EXTRAPOLATION IS OCCURRING 1---- !!!"
                     output(i,:) = output(xs_out,:) + (output(xs_out,:) - output(xs_out+1,:)) * (xs_out - i)
                 else
                     output(i,:) = output(xs_out,:)
@@ -777,6 +843,7 @@ contains
         if (grid%ime > nx) then
             do i=xe_out+1,nxo
                 if (do_extrapolate) then
+                    print *, "---- EXTRAPOLATION IS OCCURRING 2---- !!!"
                     output(i,:) = output(xe_out,:) + (output(xe_out,:) - output(xe_out-1,:)) * (i - xe_out)
                 else
                     output(i,:) = output(xe_out,:)
@@ -787,6 +854,7 @@ contains
         if (grid%jms < 1) then
             do i=1,ys_out-1
                 if (do_extrapolate) then
+                    print *, "---- EXTRAPOLATION IS OCCURRING 3---- !!!"
                     output(:,i) = output(:,ys_out) + (output(:,ys_out) - output(:,ys_out+1)) * (ys_out - i)
                 else
                     output(:,i) = output(:,ys_out)
@@ -797,6 +865,7 @@ contains
         if (grid%jme > ny) then
             do i=ye_out+1,nyo
                 if (do_extrapolate) then
+                    print *, "---- EXTRAPOLATION IS OCCURRING 4---- !!!"
                     output(:,i) = output(:,ye_out) + (output(:,ye_out) - output(:,ye_out-1)) * (i - ye_out)
                 else
                     output(:,i) = output(:,ye_out)
@@ -819,7 +888,23 @@ contains
         integer,                  intent(in)    :: longitude_system
 
         if (allocated(geo%lat)) deallocate(geo%lat)
-        allocate( geo%lat, source=latitude)
+        allocate( geo%lat, source=latitude)   ! FOO: look at these and make sure that where it is called from makes sense
+        if (this_image() == 1) then
+            print *, "SETUP_GEO ENTERED"
+            call backtrace()
+! #0  0x57578b in __domain_interface.domain_implementation_MOD_setup_geo
+!         at objects/domain_obj.f90:959
+! #1  0x53b0fc in __domain_interface.domain_implementation_MOD_initialize_core_variables
+!         at objects/domain_obj.f90:1551
+! #2  0x59ae19 in __domain_interface_MOD_init
+!         at objects/domain_obj.f90:118
+! #3  0x40aae8 in __initialization_MOD_init_model
+!         at main/init.f90:73
+! #4  0xe1e503 in icar
+!         at main/driver.f90:64
+! #5  0xe20ae1 in main
+!         at main/driver.f90:22
+        end if
 
         if (allocated(geo%lon)) deallocate(geo%lon)
         allocate( geo%lon, source=longitude)
@@ -937,6 +1022,20 @@ contains
 
 
     end subroutine allocate_z_arrays
+
+
+    ! -------------------------------
+    ! Create coarrays for smooth function
+    ! -------------------------------
+    subroutine allocate_halo_sum_arrays(this)
+        implicit none
+        class(domain_t), intent(inout)  :: this
+
+        ! allocate(this%jacobian(this% ims : this% ime, &
+        !          this% kms : this% kme, &
+        !          this% jms : this% jme) )
+
+    end subroutine allocate_halo_sum_arrays
 
 
     !> -------------------------------
@@ -1322,7 +1421,9 @@ contains
         call read_core_variables(this, options)
 
         call allocate_z_arrays(this)
-
+        if (this_image() == 1) &
+            print *, "======== NEED TO HAVE SMOOTH COARRRAYS BY THIS POINT ========"
+        ! stop "BUILD/TESTING"
         ! Setup the vertical grid structure, either as a SLEVE coordinate, or a more 'simple' vertical structure:
         if (options%parameters%sleve) then
 
@@ -2166,6 +2267,7 @@ contains
         ! grid.  They are then subset to the u_grid and v_grids above before actual use.
         call this%u_grid2d%set_grid_dimensions(     nx_global, ny_global, 0, nx_extra = 1)
         call this%u_grid2d_ext%set_grid_dimensions( nx_global, ny_global, 0, nx_extra = 1)
+
         ! extend by nsmooth, but bound to the domain grid
         this%u_grid2d_ext%ims = max(this%u_grid2d%ims - nsmooth, this%u_grid2d%ids)
         this%u_grid2d_ext%ime = min(this%u_grid2d%ime + nsmooth, this%u_grid2d%ide)
@@ -2252,6 +2354,17 @@ contains
         ! which means they must contain lat, lon, z, geolut, and vLUT components
 
         call geo_LUT(this%geo_u, forcing%geo_u)
+        ! do i=1,num_images()
+        !     if (i == this_image()) then
+        !         print *, i, ": u_grid", this%u_grid%ims,this%u_grid%ime,this%u_grid%jms,this%u_grid%jme,this%u_grid%kms&
+        !             &,this%u_grid%kme
+        !         print *, i, ": grid", this%grid%ims,this%grid%ime,this%grid%jms,this%grid%jme,this%grid%kms&
+        !             &,this%grid%kme
+        !         call geo_LUT(this%geo_u, forcing%geo_u)
+        !     end if
+        ! sync all
+        ! end do
+        ! stop "investigating geo_LUT"
         call geo_LUT(this%geo_v, forcing%geo_v)
         call geo_LUT(this%geo,   forcing%geo)
 
@@ -2291,6 +2404,7 @@ contains
             nx = size(this%geo_u%z, 1)
             ny = size(this%geo_u%z, 3)
             allocate(forcing%geo_u%z(nx,nz,ny))
+            ! print *, "geo_interp for geo_u%z"
             call geo_interp(forcing%geo_u%z, forcing%z, forc_u_from_mass%geolut)
             call vLUT(this%geo_u, forcing%geo_u)
 
@@ -2577,6 +2691,8 @@ contains
             var_to_interpolate = this%variables_to_force%next()
 
             ! get the associated forcing data
+            ! [ ] IT GETS FORCING DATA HERE, NEED TO CHECK
+            !     checking further down
             input_data = forcing%variables%get_var(var_to_interpolate%forcing_var)
 
 
@@ -2600,7 +2716,11 @@ contains
 
                     call interpolate_variable(var_to_interpolate%dqdt_3d, input_data, forcing, this, &
                                     vert_interp=.True., var_is_u=var_is_u, var_is_v=var_is_v, nsmooth=this%nsmooth)
-
+                    ! NOT BEING ENTERED
+                    ! if (var_is_u) then
+                    !     print *, "TESTING @ IN INTERPOLATE 1 and var_is_u = ", var_is_u
+                    !     call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
+                    ! end if
                     ! because pressure needs to be adjusted for grid points that fall below the forcing lowest level, we adjust it separately.
                     if (var_is_pressure) then
                         allocate(potential_temperature, mold=var_to_interpolate%dqdt_3d)
@@ -2613,9 +2733,22 @@ contains
                     endif
 
                 else
+                    if (var_is_u) then
+                    !     ! ---- PASSSING HERE -----
+                    !     call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
+                        ! call foo_writer(input_data%data_3d(:,1,:), this%grid%ximages)
+                        ! sync all
+                        ! stop "OKEY DOKEY"
+                    !     print *, "Q: VAR IS U IS ", var_is_u
+                    end if
+                    ! LOOKING INTO INTERPOLATE_VARIABLE
                     call interpolate_variable(var_to_interpolate%data_3d, input_data, forcing, this, &
                                     vert_interp=.True., var_is_u=var_is_u, var_is_v=var_is_v, nsmooth=this%nsmooth)
-
+                    if (var_is_u) then
+                        ! HERE THE WIND FIELD HAS BEEN CREATED BUT YOU SEE TILING ISSUES
+                        print *, "TESTING @ INTERPOLATE 2 and var_is_u = ", var_is_u  ! BREAKING RIGHT NOW foo
+                        call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
+                    end if
                     ! because pressure needs to be adjusted for grid points that fall below the forcing lowest level, we adjust it separately.
                     if (var_is_pressure) then
                         allocate(potential_temperature, mold=var_to_interpolate%dqdt_3d)
@@ -2630,7 +2763,7 @@ contains
             endif
         enddo
 
-    end subroutine
+    end subroutine interpolate_forcing
 
     !> -------------------------------
     !! Adjust a 3d pressure field from the forcing data to the ICAR model grid
@@ -2712,6 +2845,31 @@ contains
         logical :: interpolate_vertically, uvar, vvar
         integer :: nx, ny, nz
         integer :: windowsize, z
+        integer :: i, j, k, i_range, j_range, ii, jj, zz, jj_end
+        character(len=40) :: sformat
+        integer :: foois, fooie, foojs, fooje, foo_nx,foo_ny,foo_nz, foo_neighbor, foo_windowsize
+        ! double precision, allocatable, dimension(:,:) :: halo_rowsums[:]
+        ! double precision, allocatable, dimension(:,:,:) :: halo_rowsums_start[:], halo_rowsums_end[:]
+        ! double precision, allocatable, dimension(:,:,:) :: halo_rowmeans_start[:], halo_rowmeans_end[:]
+
+
+        real, allocatable, dimension(:,:) :: halo_rowsums[:]
+        real, allocatable, dimension(:,:,:) :: halo_rowsums_start[:], halo_rowsums_end[:]
+        real, allocatable, dimension(:,:,:) :: halo_rowmeans_start[:], halo_rowmeans_end[:]
+
+
+        ! ! double precision, allocatable :: tmpsums(:,:)
+        ! double precision, allocatable :: tmpsums(:,:,:)
+        ! double precision, allocatable, dimension(:,:,:) :: tmp_rowsums_start, tmp_rowsums_end, &
+        !     tmp_rowmeans_start, tmp_rowmeans_end
+
+
+        real, allocatable :: tmpsums(:,:,:)
+        real, allocatable, dimension(:,:,:) :: tmp_rowsums_start, tmp_rowsums_end, &
+            tmp_rowmeans_start, tmp_rowmeans_end
+
+
+        sformat = "(A20f20.15f20.15f20.15f20.15f20.15)"
 
         interpolate_vertically=.True.
         if (present(vert_interp)) interpolate_vertically = vert_interp
@@ -2722,12 +2880,31 @@ contains
         windowsize = 0
         if (present(nsmooth)) windowsize = nsmooth
 
+        if (uvar) then
+            ! print *, "TESTING @ INTERPOLATE_VARIABLE uvar = ", uvar
+            ! WIND IS THE SAME AT THIS POINT
+            ! call foo_writer(dom%u%data_3d(dom%grid%its:dom%grid%ite,1,dom%grid%jts:dom%grid%jte), dom%grid%ximages)
+            ! THIS IS DIFFERENT BUT IT IS THE VARIABLE TO INTERPOLAT
+            ! I THINK THAT IS STILL NOT GOOD??
+            ! do i=1,num_images()
+            !     if (i == this_image()) then
+            !         print *, "var_data shape", shape(var_data), "u shape", shape(dom%u%data_3d)
+            !     end if
+            !     sync all
+            ! end do
+            ! call foo_writer(var_data(:,1,:), dom%grid%ximages) ! THIS DOESNT WORK
+            ! THIS IS THE INTERESTING ONE, WHY SO WEIRD? !
+            ! call foo_writer(var_data(dom%grid%its:dom%grid%ite,1,dom%grid%jts:dom%grid%jte), dom%grid%ximages)
+            ! call foo_writer(input_data%data_3d(dom%grid%its:dom%grid%ite,1,dom%grid%jts:dom%grid%jte), dom%grid&
+            !     &%ximages)  ! NO DIFFERENCE HERE, in fact ALL 0's
+        end if
 
         ! Sequence of if statements to test if this variable needs to be interpolated onto the staggared grids
         ! This could all be combined by passing in the geo data to use, along with a smoothing flag.
 
         ! Interpolate to the Mass grid
         if ((size(var_data,1) == size(forcing%geo%geolut%x,2)).and.(size(var_data,3) == size(forcing%geo%geolut%x,3))) then
+            ! if (this_image() == 1) print *, "---- HI I'm HERE 11 ----"  DOESNT GO HERE
             ! allocate a temporary variable to hold the horizontally interpolated data before vertical interpolation
             allocate(temp_3d(size(var_data,1), size(input_data%data_3d,2), size(var_data,3) ))
 
@@ -2752,7 +2929,7 @@ contains
 
         ! Interpolate to the u staggered grid
         else if (uvar) then
-
+            if (this_image() == 1) print *, "---- HI IT IS THERE 22 ----"
             ! use the alternate allocate below to vertically interpolate to this first, then smooth, then subset to the actual variable
             allocate(temp_3d(size(forcing%geo_u%geolut%x,2), size(var_data,2), size(forcing%geo_u%geolut%x,3)))
             allocate(pre_smooth(size(forcing%geo_u%geolut%x,2), size(input_data%data_3d,2), size(forcing%geo_u%geolut%x,3) ))
@@ -2761,18 +2938,337 @@ contains
             ny = size(forcing%geo_u%geolut%x,3)
             nz = size(var_data,2)
 
-            ! One grid cell smoothing of original input data
+            ! no tiling
+            ! call foo_writer(input_data%data_3d(:,1,:), dom%grid%ximages)
             call smooth_array(input_data%data_3d, windowsize=1, ydim=3)
-            call geo_interp(pre_smooth, input_data%data_3d, forcing%geo_u%geolut)
+            !!!!! input_data%data_3d is the same on every image here !!!!! DOUBLE CHECKED
+            !!!!! no tiling !!!!
+            ! call foo_writer(input_data%data_3d(:,1,:), dom%grid%ximages) ! foo_input_data_post_smooth
+            ii = 29 !! This is the correct one
+            if (num_images() == 32 .and. this_image() == 1) then
+                jj = 48
+                jj_end = 52
+                zz = 1
+                write(*,sformat), "jnkpost1stsmotmp3d:", temp_3d(ii,zz,jj:jj_end)
+            end if
+            if (num_images() == 36 .and. this_image() == 7) then
+                jj = 24-7
+                zz = 1
+                write(*,sformat), "jnkpost1stsmotmp3d:", temp_3d(ii,zz,37:41)
+            end if
+            sync all
+            ! -------------------------------------------------------------------------------------
+            call geo_interp(pre_smooth, input_data%data_3d, forcing%geo_u%geolut) ! BREAKING HERE??
+            ! ! foo_pre_smooth_tiled/
+            ! -------------------------------------------------------------------------------------
+            ii = 29 !! This is the correct one
+            if (num_images() == 32 .and. this_image() == 1) then
+                jj = 48
+                jj_end = 52
+                zz = 1
+                write(*,sformat), "postgeo_in presmoo:", pre_smooth(ii,zz,jj:jj_end)
+            end if
+            if (num_images() == 36 .and. this_image() == 7) then
+                jj = 24-7
+                zz = 1
+                write(*,sformat), "postgeo_in presmoo:", pre_smooth(ii,zz,37:41)
+            end if
+            sync all
+            ! FOO : THIS PRE_SMOOTH LOOKS TILED!!! INVESTIGATE
+            ! call foo_writer(pre_smooth(:,1,:), dom%grid%ximages) ! foo_pre_smooth_tiled
+            ! sync all
+            ! stop "STOPPPING AFTER GEO INTERP FOR PRESMOOTH"
 
-            call vinterp(temp_3d, pre_smooth, forcing%geo_u%vert_lut)
+            ! print out geo_u%geolut geo_u%geolat, forcing for this part, domains' geolut
+            ! call foo_writer(pre_smooth(dom%u_grid%ims-dom%u_grid2d_ext%ims+1 : dom%u_grid%ime-dom%u_grid2d_ext%ims+1,    &
+            !                     1,   &
+            !                    dom%u_grid%jms-dom%u_grid2d_ext%jms+1 : dom%u_grid%jme-dom%u_grid2d_ext%jms+1), dom%grid%ximages)
+
+       ! call foo_writer(pre_smooth(:,1,:), dom%grid%ximages) ! this seems to print way too big array! make sence if
+       ! forcing to different size but then why is geo_interp .... geo_reader.f90:1111 seems to have it all
+
+            ! if (this_image() == 1) print *, "=== ENTERING VINTERP ==="
+            ! sync all
+            call vinterp(temp_3d, pre_smooth, forcing%geo_u%vert_lut, &
+                investigate=.true.)
+            ! temp_3d visually looks good individually
             ! temp_3d = pre_smooth(:,:nz,:) ! no vertical interpolation option
+            ii = 29 !! This is the correct one
+            if (num_images() == 32 .and. this_image() == 1) then
+                jj = 48
+                jj_end = 52
+                zz = 1
+                write(*,sformat), "postvinter temp_3d:", temp_3d(ii,zz,jj:jj_end)
+            end if
+            if (num_images() == 36 .and. this_image() == 7) then
+                jj = 24-7
+                zz = 1
+                write(*,sformat), "postvinter temp_3d:", temp_3d(ii,zz,37:41)
+            end if
+            sync all
 
-            call smooth_array(temp_3d, windowsize=windowsize, ydim=3)
+            ! temp_3d is tiled like others in certain spots, but looks much better
+            ! call foo_writer(temp_3d(:,1,:), dom%grid%ximages) ! foo_temp_3d
+            do i=1,num_images()
+                if (i == this_image()) then
+                    ! GOOD ONES
+                    ! foois = 1 + 1 + 1
+                    ! fooie = ubound(temp_3d,1) - 3
+                    ! foojs = 1 + 1
+                    ! fooje = ubound(temp_3d,3) - 3
+                    ! if (dom%west_boundary .eqv. .true.) foois = foois - 1
+                    ! if (dom%east_boundary .eqv. .true.) fooie = fooie - 1
+                    ! if (dom%south_boundary .eqv. .true.) foojs= foojs + 1
+                    ! if (dom%north_boundary .eqv. .true.) fooje= fooje - 1
+                    ! TEST ONES THAT ARE EVEN BETTER NOW !!
+                    foois = 1 + 1 + 1
+                    fooie = ubound(temp_3d,1) - 3
+                    foojs = 1 + 1 + 1
+                    fooje = ubound(temp_3d,3) - 2
+                    if (dom%west_boundary .eqv. .true.) foois = foois - 1
+                    if (dom%east_boundary .eqv. .true.) fooie = fooie - 1
+                    if (dom%south_boundary .eqv. .true.) foojs= foojs + 1
+                    if (dom%north_boundary .eqv. .true.) fooje= fooje - 1
 
+                end if
+                sync all
+            end do
+            ! TEMP 3D LOOKS GOOD HERE
+            ! print *, "WRITING TEMP_3D SUBSET"  ! THIS ONE PRINTS CORRECTLY
+            ! call foo_writer(temp_3d(foois:fooie,:,foojs:fooje), dom%grid%ximages)
+
+
+            if (this_image() == 2 ) then
+                 print *, num_images(), ":", dom%grid%ims,dom%grid%ime,dom%grid%kms,dom%grid%kme,dom%grid%jms,dom%grid%jme
+
+            end if
+
+
+            ! do ii=1,num_images()
+            !     if (ii == this_image()) then
+            !         ! trying to understand temp_3d better, boundary conditions need to be communicated?
+            !         ! TEMP_3D IS WIND: print bounds then print every value at row
+            !         print *, this_image(), ":"
+            !     end if
+            !     sync all
+            ! end do
+            ! sync all
+            ! stop "PRINT TEMP 3d BOUNDS"
+
+            ! print *,this_image(), ": windowsize is", windowsize
+            ! foo, just trying to remove this
+            ! FOOBAR: THIS IS BREAKING IT !!
+            ! call smooth_array(temp_3d, windowsize=windowsize, ydim=3, investigate=.true.)
+
+            foo_nx = size(temp_3d, 1)
+            foo_nz = size(temp_3d, 2) !note, this is Z for the high-res domain (ydim=3)
+            foo_ny = size(temp_3d, 3) !note, this could be the Y or Z dimension depending on ydim
+
+            ! allocate(halo_rowsums(foo_nx,foo_ny)[*]) the ny and nz's may have been switched
+            ! allocate(tmpsums(foo_nx,foo_ny))
+            ! tmpsums = 0
+            ! do j=1,foo_ny  ! IF 3D NY IS Z direction
+            !     do i=foo_nz-(2*2)-3,foo_nz-3
+            !         tmpsums(:,j) = tmpsums(:,j) + temp_3d(:,j,i)
+            !     end do
+            !     ! tmpsums(:,j) = temp_3d(:,j,foo_nz-3) * (2+2) ! windowsize is 2   ! ORIGINAL
+            !     if (j == 1 .and. this_image() == 9) then  ! For image=9, k=1 had the correct value -7.29018211
+            !         print *, "----"
+            !         print *, "ORIG", temp_3d(:,j,foo_nz-3) * (2+2)
+            !         print *, "NEW ", tmpsums(:,j)
+            !         print *, "----"
+            !     end if
+            ! end do
+            foo_windowsize=2
+            allocate(halo_rowsums_start (foo_nx,foo_nz,-foo_windowsize:0)[*])
+            allocate(halo_rowmeans_start(foo_nx,foo_nz,-foo_windowsize:0)[*])
+            allocate(tmp_rowsums_start  (foo_nx,foo_nz,-foo_windowsize:0))
+            allocate(tmp_rowmeans_start (foo_nx,foo_nz,-foo_windowsize:0))
+            allocate(halo_rowsums_end   (foo_nx,foo_nz,foo_ny:foo_ny+foo_windowsize)[*])
+            allocate(halo_rowmeans_end  (foo_nx,foo_nz,foo_ny:foo_ny+foo_windowsize)[*])
+            allocate(tmp_rowsums_end    (foo_nx,foo_nz,foo_ny:foo_ny+foo_windowsize))
+            allocate(tmp_rowmeans_end   (foo_nx,foo_nz,foo_ny:foo_ny+foo_windowsize))
+
+
+            foo_neighbor = dom%u%get_neighbor(1)  ! NORTH
+            if (foo_neighbor .ne. -1) then
+                ! --- handle rowsums_start
+                do j=1,foo_nz  ! IF 3D NY IS Z direction
+                    do i=-foo_windowsize,0
+            !     do i=foo_nz-(2*2)-3,foo_nz-3
+                        tmp_rowsums_start(:,j,i) = temp_3d(:,j,foo_ny-3) ! THIS IS A TEST CASE, should change in future
+                        ! will be -1cause -2,-1,0,1,2    !is it foo_ny-3+i-1?
+                    end do
+                end do
+                halo_rowsums_start(:,:,:)[foo_neighbor] = tmp_rowsums_start
+            else ! (foo_neighbor .eq. -1)
+                ! --- handle rowsums_end
+                do j=1,foo_nz
+                    do i=foo_ny,foo_ny+foo_windowsize
+                        halo_rowsums_end(:,j,i) = temp_3d(:,j,1)
+                    end do
+                end do
+            end if
+
+
+            foo_neighbor = dom%u%get_neighbor(3) ! SOUTH
+            if (foo_neighbor .ne. -1) then
+                do j=1,foo_nz  ! IF 3D NY IS Z direction
+                    do i=foo_ny,foo_ny+foo_windowsize
+                        tmp_rowsums_end(:,j,i) = temp_3d(:,j,1) ! THIS IS A TEST CASE, should change in future
+                        ! will be +1cause -2,-1,0,1,2    !is it foo_windowsize+1?
+                    end do
+                end do
+                halo_rowsums_end(:,:,:)[foo_neighbor] = tmp_rowsums_end
+            else ! (foo_neighbor .eq. -1) then
+                ! --- handle rowsums_start
+                do j=1,foo_nz
+                    do i=-foo_windowsize,0
+                        halo_rowsums_start(:,j,i) = temp_3d(:,j,1)
+                    end do
+                end do
+                ! --- handle rowsums_end
+            end if
+            sync all
+
+            ! ---- ALL THESE MATCH FOR NOW----
+            if (this_image() == 9) then  ! For image=9, k=1 had the correct value -7.29018211
+                print *, "---- shapes", shape(temp_3d), "and" , shape(halo_rowsums_start)
+                print *, "9:halo_rowsums(:,j)", halo_rowsums_start(:,4,0)
+                print *, "-"
+                print *, "TEMP_3D", temp_3d(:,4,1)
+                print *, "----"
+            end if
+            sync all
+            if (this_image() == 1) then
+                print *, "1HALOSE", tmp_rowsums_start(:,4,0)
+            end if
+            ! ---- ALL THESE MATCH FOR NOW----
+            ! stop "HI"
+
+            call smooth_array_3d_high_variation(wind=temp_3d, windowsize=foo_windowsize, ydim=3, &
+                rowsums_start=halo_rowsums_start,rowsums_end=halo_rowsums_end,&
+                rowmeans_start=halo_rowmeans_start,rowmeans_end=halo_rowmeans_end)
+
+
+            sync all
+            ! deallocate(tmpsums, halo_rowsums)
+            deallocate(tmp_rowsums_start,tmp_rowsums_end,tmp_rowmeans_start,tmp_rowmeans_end)
+
+            print *, "WRITING TEMP_3D POST SMOOTH"  ! THIS ONE PRINTS CORRECTLY
+            call foo_writer(temp_3d(foois:fooie,:,foojs:fooje), dom%grid%ximages)
+
+
+            ii = 29 !! This is the correct one
+            if (num_images() == 32 .and. this_image() == 1) then
+                jj = 48
+                jj_end = 52
+                zz = 1
+                write(*,"(A20f20.15f20.15f20.15f20.15f20.15)"), "postsmooth temp_3d:", temp_3d(ii,zz,jj:jj_end)
+                ! call foo_writer(   temp_3d(ii:ii,zz,jj:jj_end), dom%grid%ximages, stop_l = .false.)
+            end if
+            if (num_images() == 36 .and. this_image() == 7) then
+                jj = 24-7
+                zz = 1
+                write(*,"(A20f20.15f20.15f20.15f20.15f20.15)"), "postsmooth temp_3d:", temp_3d(ii,zz,37:41)
+                ! call foo_writer(temp_3d(ii:ii,zz,37:41)   , dom%grid%ximages, stop_l = .false.)
+
+            end if
+            sync all
+            ! if (end) stop "ENDING HERE === =="
+            ! if (.true.) stop "ENDING HERE === =="
+
+            print *, "WRITING post smooth 3d"  ! THIS ONE PRINTS CORRECTLY
+            call foo_writer(temp_3d(foois:fooie,:,foojs:fooje), dom%grid%ximages)
+
+            ! "checking post smooth indiviually, looks better visually but still some tiling"
+            ! call foo_writer(temp_3d(:,:,:), dom%grid%ximages) ! foo_postsmooth_temp_3d
+
+
+            ! do i=1,num_images()
+            !     if (i == this_image()) then
+            !     print *, this_image(), ": ", size(forcing%geo_u%geolut%x,2), size(var_data,2), size(forcing%geo_u%geolut%x&
+            !         &,3), "|||", dom%u_grid%ims-dom%u_grid2d_ext%ims+1, ":", dom%u_grid%ime-dom%u_grid2d_ext%ims+1, &
+            !         ",", dom%u_grid%jms-dom%u_grid2d_ext%jms+1,":",  dom%u_grid%jme-dom%u_grid2d_ext%jms+1
+            !     end if
+            !     sync all
+            ! end do
+            ! stop "STOP RIGHT RIGHT HERE HERE"
+       ! ORIGINAL
+       ! call foo_writer(temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+1 : dom%u_grid%ime-dom%u_grid2d_ext%ims+1,    &
+       !                          1,   &
+       !                         dom%u_grid%jms-dom%u_grid2d_ext%jms+1 : dom%u_grid%jme-dom%u_grid2d_ext%jms+1), dom%grid%ximages)
+!             do i=1,num_images()
+!                 if (i == this_image()) then
+!                     ! OUT OF BOUNDS
+!                     ! print *, this_image(),":", shape(temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+2 : dom%u_grid%ime-dom%u_grid2d_ext&
+!        !     &%ims+2,    &
+!        !                          1,   &
+!        !                         dom%u_grid%jms-dom%u_grid2d_ext%jms+1 : dom%u_grid%jme-dom%u_grid2d_ext%jms+1))
+!        print *, this_image(),":", shape(temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+1 : dom%u_grid%ime-dom%u_grid2d_ext%ims+1,    &
+!                                 1,   &
+!                                dom%u_grid%jms-dom%u_grid2d_ext%jms+1 : dom%u_grid%jme-dom%u_grid2d_ext%jms+1))
+! print *, "============================="
+
+!    end if
+            !     sync all
+            ! end do
+
+       ! call foo_writer(temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+1 : dom%u_grid%ime-dom%u_grid2d_ext%ims+1,    &
+       !                               1,   &
+       !                         dom%u_grid%jms-dom%u_grid2d_ext%jms+1 : dom%u_grid%jme-dom%u_grid2d_ext%jms+1), dom%grid%ximages)
+       ! better smoothing but total domain domensions are off
+       ! call foo_writer(temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+2 : dom%u_grid%ime-dom%u_grid2d_ext%ims,    &
+       !                          1,   &
+       !                         dom%u_grid%jms-dom%u_grid2d_ext%jms+2 : dom%u_grid%jme-dom%u_grid2d_ext%jms), dom%grid%ximages)
+            ! ORIGIN
             var_data = temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+1 : dom%u_grid%ime-dom%u_grid2d_ext%ims+1,    &
                                 :,   &
                                dom%u_grid%jms-dom%u_grid2d_ext%jms+1 : dom%u_grid%jme-dom%u_grid2d_ext%jms+1)
+
+            ! print *, "check group var_data post smooth"
+            ! call foo_writer(var_data, dom%grid%ximages)
+
+            ! var_data = temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+2 : dom%u_grid%ime-dom%u_grid2d_ext%ims,    &
+            !                     :,   &
+            !                    dom%u_grid%jms-dom%u_grid2d_ext%jms+2 : dom%u_grid%jme-dom%u_grid2d_ext%jms)
+
+
+            ! do ii=1,num_images()
+            !     if (ii == this_image()) then
+            !         print *, this_image(), "GRIDS::", dom%u_grid%its,":",dom%u_grid%ite, "", &
+            !             dom%u_grid%jts,":",dom%u_grid%jte
+            !     end if
+            !     sync all
+            ! end do
+            ! sync all
+            ! stop "WRITING TILE SUBSET"
+
+            ! print *, "WRITING TILE SUBSET"  ! THIS ONE PRINTS CORRECTLY
+            ! call foo_writer(dom%u%data_3d(dom%u_grid%its:dom%u_grid%ite-1,:,&
+            !                                dom%u_grid%jts:dom%u_grid%jte), dom%grid%ximages)
+
+            ii = 29 !! This is the correct one
+            if (num_images() == 32 .and. this_image() == 1) then
+                jj = 48
+                jj_end = 52
+                zz = 1
+                write(*,sformat), "temp_3d           :", temp_3d(ii,zz,jj:jj_end)
+                write(*,sformat), "var_data          :", var_data(ii,zz,jj:jj_end)
+            end if
+            if (num_images() == 36 .and. this_image() == 7) then
+                jj = 24-7
+                zz = 1
+                write(*,sformat), "temp_3d           :", temp_3d(ii,zz,37:41)
+                ! write(*,sformat), "var_data:", var_data(ii,zz,jj-1:jj+1)
+                write(*,sformat), "var_data          :", var_data(ii,zz,12:16)
+            end if
+
+            sync all
+            if (end) stop "STOP RIGHT RIGHT HERE **** **"
+            ! stop "STOP RIGHT RIGHT HERE **** **"
+            ! from after call foo_writer(this%u%data_3d(this%its:this%ite,1,this%jts:this%jte), this%grid%ximages)
+
         ! Interpolate to the v staggered grid
         else if (vvar) then
 
