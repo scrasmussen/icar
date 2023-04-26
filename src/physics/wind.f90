@@ -20,6 +20,7 @@ module wind
     use options_interface, only : options_t
 
     use io_routines, only : io_read
+    use array_utilities, only : make_2d_x, make_2d_y
 
     implicit none
     private
@@ -522,6 +523,7 @@ contains
         double precision :: dist, dlat, dlon
 
         real, allocatable :: temporary_2d(:,:)
+        real, allocatable :: temporary_data_lon(:,:), temporary_data_lat(:,:)
 
         call allocate_winds(domain)
 
@@ -552,22 +554,33 @@ contains
             deallocate(temporary_2d)
         else
 
-            associate(lat => domain%latitude_global,  &
-                      lon => domain%longitude_global,  &
-                      grid => domain%grid)
+            associate(grid => domain%grid)
 
             if (this_image()==1) print*, "Computing sin/cos alpha"
+
+            ! The following four calls reread the lon/lat files so that
+            ! costheta and sintheta gets calculated correctly. This will
+            ! occur once at init.
+            call io_read(options%parameters%init_conditions_file,   &
+                 options%parameters%lat_hi,                 &
+                 temporary_data_lat)
+            call make_2d_y(temporary_data_lat, max(grid%ims-2,1), min(grid%ime+2,grid%ide))
+            ! Read the longitude data
+            call io_read(options%parameters%init_conditions_file,   &
+                 options%parameters%lon_hi,                 &
+                 temporary_data_lon)
+            call make_2d_x(temporary_data_lon, max(grid%jms-2,1), min(grid%jme+2, grid%jde))
+
 
             do j = grid%jms, grid%jme
                 do i = grid%ims, grid%ime
                     ! in case we are in the first or last grid, reset boundaries
-                    starti = max(grid%ids, i-2)
-                    endi   = min(grid%ide, i+2)
-
+                    starti = max(1, i-2)
+                    endi   = min(domain%grid%ide, i+2)
                     ! change in latitude
-                    dlat = DBLE(lat(endi,j)) - lat(starti,j)
+                    dlat = DBLE(temporary_data_lat(endi,j)) - temporary_data_lat(starti,j)
                     ! change in longitude
-                    dlon = DBLE(lon(endi,j) - lon(starti,j)) * cos(deg2rad*DBLE(lat(i,j)))
+                    dlon = DBLE(temporary_data_lon(endi,j) - temporary_data_lon(starti,j)) * cos(deg2rad*DBLE(temporary_data_lat(i,j)))
                     ! distance between two points
                     dist = sqrt(DBLE(dlat)**2 + DBLE(dlon)**2)
 
@@ -576,6 +589,8 @@ contains
                     domain%sintheta(i, j) = (-1) * dlat / dist
                 enddo
             enddo
+            deallocate(temporary_data_lat)
+            deallocate(temporary_data_lon)
 
             end associate
         endif
