@@ -14,6 +14,13 @@ module array_utilities
         module procedure array_offset_y_2d, array_offset_y_3d
     end interface
 
+    ! interface gather_array
+    !    module procedure gather_array_3d
+    ! end interface gather_array
+
+    interface scatter_array
+       module procedure scatter_array_3d
+    end interface scatter_array
 
 contains
 
@@ -544,5 +551,32 @@ contains
 
     end subroutine swap_y_z_dimensions
 
+
+    ! subroutine gather_array_3d(coarray, grids, main_image_arg)
+    ! end subroutine gather_array_3d
+
+    subroutine scatter_array_3d(coarray, grids, main_image_arg)
+      real, intent(inout) :: coarray(:,:,:)[*]
+      integer, intent(in), optional :: grids(:,:)
+      integer, intent(in), optional :: main_image_arg
+      integer :: main_image, i
+      integer :: i_start, i_stop, k_start, k_stop, j_start, j_stop
+
+      main_image = num_images()
+      if (present(main_image_arg)) main_image = main_image_arg
+
+      if (this_image() == main_image) then
+         if (present(grids) .eqv. .false.) then
+            error stop "Main image needs grids variable to scatter coarray"
+         end if
+         do i=1,num_images()
+            if (i == main_image) cycle
+            coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)[i] = &
+                 coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)
+         end do
+      end if
+
+
+    end subroutine scatter_array_3d
 
 end module array_utilities

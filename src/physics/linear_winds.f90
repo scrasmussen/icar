@@ -1198,9 +1198,10 @@ contains
         complex(C_DOUBLE_COMPLEX), allocatable  :: complex_terrain_firstpass(:,:)
         complex(C_DOUBLE_COMPLEX), allocatable  :: complex_terrain(:,:)
         type(C_PTR) :: plan
-        integer     :: nx, ny, nz
+        integer     :: nx, ny, nz, i
         real        :: saved_linear_contribution ! temporary variable to save the linear contribution state so we can restore
         integer     :: save_buffer
+        integer     :: smoothing_large_n
 
         ! store module level variables so we don't have to pass options through everytime
         ! lots of these things probably need to be moved to the linearizable class so they
@@ -1315,6 +1316,29 @@ contains
 
             ! endif
         endif
+
+        ! setup spacial winds smoothing
+        smoothing_large_n = 0
+        ! if (OPTIONS%SMOOTHING > ) then
+        !    smoothing_large_n = 1
+        ! end if
+        call co_sum(smoothing_large_n)
+        if (smoothing_large_n > 0) then
+           ! - [ ] every image needs to know if smoothing_bv_extra = yes or no
+           do i = 1, num_images()
+              ! - [ ] where to find grid
+              call domain%grid%set_grid_dimensions(nx, ny, nz, for_image=i)
+              ! - [ ] where to save test_data
+              ! test_data(:,i) = [grid%ims, grid%ime, &
+              !                   grid%kms, grid%kme, &
+              !                   grid%jms, grid%jme]
+           end do
+           call domain%grid%set_grid_dimensions(nx, ny, nz)
+        end if
+
+
+        stop "SETUP SPACIAL WINDS SMOOTHING"
+
 
         module_initialized = .True.
 
