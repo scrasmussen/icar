@@ -1,0 +1,21 @@
+# ICAR CTests
+
+Note: CTests use the Makefile build system at `src/makefile` to build ICAR. From this `src/tests/ctest` directory enter the following commands to build and run the CTests.
+
+```
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ ctest
+```
+
+# ICAR Makefile Commands
+ICAR use the [[https://en.wikipedia.org/wiki/Make_(software)][Make]] build system with the makefile located at `src/makefile`.
+The `CMakeLists.txt` file has targets to access a few of this build system's targets.
+After building CMake the user can use the following commands.
+```
+$ make build
+$ make clean
+$ make clean-all
+```
