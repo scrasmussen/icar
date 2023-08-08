@@ -280,6 +280,14 @@ module domain_interface
 
     real :: smooth_height, dx
     integer :: nsmooth
+    ! if the smooth size will go beyond the neighboring image then the whole
+    ! array will be kept on all images, with the nth image being the main
+    ! image that the others will put/get while calling
+    ! {gather,scatter}_coarray()
+    ! smooth_nsquared_coarray_b is a bool-like var, 0 is false, 1 is true
+    ! this value needs to be communicated between all images
+    integer :: smooth_nsquared_coarray_b
+    real, allocatable :: smooth_nsquared_coarray(:,:,:)[:]
 
     complex(C_DOUBLE_COMPLEX),  allocatable :: terrain_frequency(:,:) ! FFT(terrain)
     double precision,           allocatable :: costheta(:,:)

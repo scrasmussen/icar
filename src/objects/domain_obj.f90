@@ -182,7 +182,12 @@ contains
         if (0<opt%vars_to_allocate( kVARS%w) )                          call setup(this%w,                        this%grid )
         if (0<opt%vars_to_allocate( kVARS%w) )                          call setup(this%w_real,                   this%grid )
         if (0<opt%vars_to_allocate( kVARS%nsquared) )                   call setup(this%nsquared,                 this%grid )
-        if (0<opt%vars_to_allocate( kVARS%nsquared) )                   call setup(this%smooth_nsquared,          this%grid_smooth_nsquared)
+        if (0<opt%vars_to_allocate( kVARS%nsquared) )                   call setup(this%smooth_nsquared, this%grid_smooth_nsquared)
+        if (this%smooth_nsquared_coarray_b == 1 ) &
+             allocate(this%smooth_nsquared_coarray(this%grid_smooth_nsquared%nx_global, &
+        this%grid_smooth_nsquared%nz, this%grid_smooth_nsquared%ny_global)[*])
+           ! print *, "nsquarred coarray domain:", this%grid_smooth_nsquared&
+           !      &%nx_global, this%grid_smooth_nsquared%ny_global
         if (0<opt%vars_to_allocate( kVARS%water_vapor) )                call setup(this%water_vapor,              this%grid,     forcing_var=opt%parameters%qvvar,      list=this%variables_to_force, force_boundaries=.True.)
         if (0<opt%vars_to_allocate( kVARS%potential_temperature) )      call setup(this%potential_temperature,    this%grid,     forcing_var=opt%parameters%tvar,       list=this%variables_to_force, force_boundaries=.True.)
         if (0<opt%vars_to_allocate( kVARS%cloud_water) )                call setup(this%cloud_water_mass,         this%grid,     forcing_var=opt%parameters%qcvar,      list=this%variables_to_force, force_boundaries=.True.)
@@ -1016,7 +1021,7 @@ contains
             ! ( Although an argument could be made to calculate this on the offset (u/v) grid b/c that is most
             !   relevant for advection? In reality this is probably a sufficient approximation, as long as we
             !   aren't pushing the gamma factor too close to zero )
-            allocate(gamma_n(this%kms : max_level))  
+            allocate(gamma_n(this%kms : max_level))
 
 
             i=kms
@@ -1027,7 +1032,7 @@ contains
                 * COSH((smooth_height/s2)**n) / SINH((smooth_height/s2)**n)
             if (options%parameters%debug .and. this_image()==1) write(*,*) " k, gamma: ", i, gamma_n(i)
 
-            ! do i = this%grid%kds, this%grid%kde 
+            ! do i = this%grid%kds, this%grid%kde
             do i = this%grid%kms, max_level-1 ! account for flat z < 0, otherwise gamma can blow up if flat z < 0.
                 gamma_n(i+1)  =  1                                    &    ! # for i != kds !!
                 - MAXVAL(h1) * n/(s1**n) * sum(dz_scl(1:i))**(n-1)                                             &
@@ -2144,7 +2149,7 @@ contains
         type(options_t), intent(in)     :: options
 
         real, allocatable :: temporary_data(:,:)
-        integer :: nx_global, ny_global, nz_global, nsmooth
+        integer :: nx_global, ny_global, nz_global, nsmooth, stability_window_size
 
         nsmooth = max(1, int(options%parameters%smooth_wind_distance / options%parameters%dx))
         this%nsmooth = nsmooth
@@ -2164,8 +2169,21 @@ contains
         call this%u_grid%set_grid_dimensions(       nx_global, ny_global, nz_global, nx_extra = 1)
         call this%v_grid%set_grid_dimensions(       nx_global, ny_global, nz_global, ny_extra = 1)
 
+        ! print *, this_image(), "GLOBAL nx, ny = ", nx_global, ny_global
         call this%grid_smooth_nsquared%set_grid_dimensions(nx_global, ny_global, nz_global, &
              halo_width = options%lt_options%stability_window_size )
+
+        ! total stability window size that will need to be communicated
+        ! if halo is larger than local dimensions, larger array is used
+        stability_window_size = options%lt_options%stability_window_size ! +1 ??
+        this%smooth_nsquared_coarray_b = 0
+        if (stability_window_size > this%nx .or. &
+             stability_window_size > this%grid_smooth_nsquared%ny) then
+
+           this%grid_smooth_nsquared%halo_size = 0
+           this%smooth_nsquared_coarray_b = 1
+        end if
+        call co_max(this%smooth_nsquared_coarray_b)
 
         ! for 2D mass variables
         call this%grid2d%set_grid_dimensions(       nx_global, ny_global, 0)
@@ -2777,7 +2795,7 @@ contains
             call vinterp(temp_3d, pre_smooth, forcing%geo_u%vert_lut)
             ! temp_3d = pre_smooth(:,:nz,:) ! no vertical interpolation option
 
-            call smooth_array(temp_3d, windowsize=windowsize, ydim=3)
+            ! call smooth_array(temp_3d, windowsize=windowsize, ydim=3)
 
             var_data = temp_3d(dom%u_grid%ims-dom%u_grid2d_ext%ims+1 : dom%u_grid%ime-dom%u_grid2d_ext%ims+1,    &
                                 :,   &
@@ -2798,7 +2816,7 @@ contains
             call geo_interp(pre_smooth, input_data%data_3d, forcing%geo_v%geolut)
             call vinterp(temp_3d, pre_smooth, forcing%geo_v%vert_lut)
             ! temp_3d = pre_smooth(:,:nz,:) ! no vertical interpolation option
-            call smooth_array(temp_3d, windowsize=windowsize, ydim=3)
+            ! call smooth_array(temp_3d, windowsize=windowsize, ydim=3)
 
             var_data = temp_3d(dom%v_grid%ims-dom%v_grid2d_ext%ims+1 : dom%v_grid%ime-dom%v_grid2d_ext%ims+1,    &
                                 :,   &
