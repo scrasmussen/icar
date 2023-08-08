@@ -64,13 +64,36 @@ add_executable(coarray_gather_index_test
   coarray_gather_index_test.f90
   ${icar_build}/array_utilities.o)
 add_test(NAME coarray_gather_index_test
-  COMMAND ${cafrun}
-  ${caf_np_arg}
-  ${caf_np}
+  COMMAND ${cafrun} ${caf_np_arg} ${caf_np}
   ${CMAKE_CURRENT_BINARY_DIR}/coarray_gather_index_test)
 
+add_executable(coarray_gather_grid_test
+  coarray_gather_grid_test.f90
+  ${icar_build}/array_utilities.o
+  ${icar_build}/assertions.o
+  ${icar_build}/grid_obj.o
+  ${icar_build}/grid_h.o)
+add_test(NAME coarray_gather_grid_test
+  COMMAND ${cafrun} ${caf_np_arg} ${caf_np}
+  ${CMAKE_CURRENT_BINARY_DIR}/coarray_gather_grid_test)
 
 # coarray scatter tests
+add_executable(coarray_scatter_index_test
+  coarray_scatter_index_test.f90
+  ${icar_build}/array_utilities.o)
+add_test(NAME coarray_scatter_index_test
+  COMMAND ${cafrun} ${caf_np_arg} ${caf_np}
+  ${CMAKE_CURRENT_BINARY_DIR}/coarray_scatter_index_test)
+
+add_executable(coarray_scatter_grid_test
+  coarray_scatter_grid_test.f90
+  ${icar_build}/array_utilities.o
+  ${icar_build}/assertions.o
+  ${icar_build}/grid_obj.o
+  ${icar_build}/grid_h.o)
+add_test(NAME coarray_scatter_grid_test
+  COMMAND ${cafrun} ${caf_np_arg} ${caf_np}
+  ${CMAKE_CURRENT_BINARY_DIR}/coarray_scatter_grid_test)
 
 
 # coarray gather scatter test
