@@ -14,13 +14,15 @@ module array_utilities
         module procedure array_offset_y_2d, array_offset_y_3d
     end interface
 
-    ! interface gather_array
-    !    module procedure gather_array_3d
-    ! end interface gather_array
+    interface gather_coarray
+       module procedure gather_coarray_3d_grid
+       module procedure gather_coarray_3d_index
+    end interface gather_coarray
 
-    interface scatter_array
-       module procedure scatter_array_3d
-    end interface scatter_array
+    interface scatter_coarray
+       module procedure scatter_coarray_3d_grid
+       module procedure scatter_coarray_3d_index
+    end interface scatter_coarray
 
 contains
 
@@ -551,32 +553,78 @@ contains
 
     end subroutine swap_y_z_dimensions
 
+    subroutine gather_coarray_3d_grid(coarray, grid, main_image_arg)
+        use grid_interface, only: grid_t
+        real, intent(inout) :: coarray(:,:,:)[*]
+        ! integer, intent(in) :: grid(:) ! should be grid obj??
+        type(grid_t), intent(in) :: grid
+        integer, intent(in), optional :: main_image_arg
+        integer :: main_image, i
+        integer :: i_start, i_stop, k_start, k_stop, j_start, j_stop
+        ! the main image is where the gather is going to
+        ! if image is main image, it can return
+        main_image = num_images()
+        if (present(main_image_arg)) main_image = main_image_arg
+        if (main_image == this_image()) return
 
-    ! subroutine gather_array_3d(coarray, grids, main_image_arg)
-    ! end subroutine gather_array_3d
+        i_start = grid%ims
+        k_start = grid%kms
+        j_start = grid%jms
+        i_stop = grid%ime
+        k_stop = grid%kme
+        j_stop = grid%jme
 
-    subroutine scatter_array_3d(coarray, grids, main_image_arg)
-      real, intent(inout) :: coarray(:,:,:)[*]
-      integer, intent(in), optional :: grids(:,:)
-      integer, intent(in), optional :: main_image_arg
-      integer :: main_image, i
-      integer :: i_start, i_stop, k_start, k_stop, j_start, j_stop
+        coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)[main_image] = &
+             coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)
+    end subroutine gather_coarray_3d_grid
 
-      main_image = num_images()
-      if (present(main_image_arg)) main_image = main_image_arg
+    subroutine gather_coarray_3d_index(coarray, i_start, i_stop, k_start, k_stop, &
+         j_start, j_stop, main_image_arg)
+        real, intent(inout) :: coarray(:,:,:)[*]
+        integer, intent(in) :: i_start, i_stop, j_start, j_stop, k_start, k_stop
+        integer, intent(in), optional :: main_image_arg
+        integer :: main_image, i
+        ! the main image is where the gather is going to
+        ! if image is main image, it can return
+        main_image = num_images()
+        if (present(main_image_arg)) main_image = main_image_arg
+        if (main_image == this_image()) return
 
-      if (this_image() == main_image) then
-         if (present(grids) .eqv. .false.) then
-            error stop "Main image needs grids variable to scatter coarray"
-         end if
-         do i=1,num_images()
-            if (i == main_image) cycle
-            coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)[i] = &
-                 coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)
-         end do
-      end if
+        coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)[main_image] = &
+             coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)
+    end subroutine gather_coarray_3d_index
 
+    subroutine scatter_coarray_3d_grid(coarray, grid, main_image_arg)
+        use grid_interface, only: grid_t
+        real, intent(inout) :: coarray(:,:,:)[*]
+        type(grid_t), intent(in) :: grid
+        ! integer, intent(in), optional :: grids(:,:)
+        integer, intent(in), optional :: main_image_arg
+        integer :: main_image, i
+        integer :: i_start, i_stop, k_start, k_stop, j_start, j_stop
+        main_image = num_images()
+        if (present(main_image_arg)) main_image = main_image_arg
+        i_start = grid%ims
+        k_start = grid%kms
+        j_start = grid%jms
+        i_stop = grid%ime
+        k_stop = grid%kme
+        j_stop = grid%jme
 
-    end subroutine scatter_array_3d
+        coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop) = &
+             coarray(i_start:i_stop, k_start:k_stop, j_start:j_stop)[main_image]
+    end subroutine scatter_coarray_3d_grid
+
+    subroutine scatter_coarray_3d_index(coarray, i_start, i_stop, j_start, j_stop, main_image_arg)
+        real, intent(inout) :: coarray(:,:,:)[*]
+        integer, intent(in) :: i_start, i_stop, j_start, j_stop
+        integer, intent(in), optional :: main_image_arg
+        integer :: main_image, i
+        main_image = num_images()
+        if (present(main_image_arg)) main_image = main_image_arg
+
+        coarray(i_start:i_stop, :, j_start:j_stop) = &
+             coarray(i_start:i_stop, :, j_start:j_stop)[main_image]
+    end subroutine scatter_coarray_3d_index
 
 end module array_utilities

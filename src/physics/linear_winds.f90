@@ -847,6 +847,7 @@ contains
     !!
     !!----------------------------------------------------------
     subroutine spatial_winds(domain,reverse, vsmooth, winsz, update)
+        use array_utilities, only: gather_coarray, scatter_coarray
         implicit none
         type(domain_t), intent(inout):: domain
         logical,        intent(in)   :: reverse
@@ -864,7 +865,7 @@ contains
         integer :: ims, ime, jms, jme, ims_u, ime_u, jms_v, jme_v, kms, kme
         real :: dweight, nweight, sweight, curspd, curdir, curnsq, wind_first, wind_second
         real :: blocked, hydrometeors
-
+        integer :: ii
         ! pointers to the u/v data to be updated so they can point to different places depending on the update flag
         real, pointer :: u3d(:,:,:), v3d(:,:,:), nsquared(:,:,:)
 
@@ -987,12 +988,42 @@ contains
 
         ! smooth array has it's own parallelization, so this probably can't go in a critical section
         if (smooth_nsq) then
-            domain%smooth_nsquared%data_3d(ims:ime,:,jms:jme) = nsquared(:,:,:)
-            call domain%smooth_nsquared%exchange_directional_sync()
+
+            if (domain%smooth_nsquared_coarray_b == 1) then
+                ! print *, "SMOOTH STARTS"
+                if (ims /= 1) ims = ims + 1 ! should this be halo?
+                if (ime /= domain%grid%nx_global) ime = ime - 1
+                if (jms /= 1) jms = jms + 1
+                if (jme /= domain%grid%ny_global) jme = jme - 1
+
+                domain%smooth_nsquared_coarray(ims:ime,:,jms:jme) = nsquared(ims:ime,:,jms:jme)
+                ! domain%smooth_nsquared_coarray(ims:ime,:,jms:jme) = this_image()
+                ! call gather_coarray(domain%smooth_nsquared_coarray, ims, ime, jms, jme)
+                sync all
+
+                if (ims /= 1) ims = ims - 1 ! should this be halo?
+                if (ime /= domain%grid%nx_global) ime = ime + 1
+                if (jms /= 1) jms = jms - 1
+                if (jme /= domain%grid%ny_global) jme = jme + 1
+
+                call scatter_coarray(domain%smooth_nsquared_coarray, ims, ime, jms, jme)
+                sync all
+
+                domain%smooth_nsquared%data_3d(ims:ime,:,jms:jme) = domain%smooth_nsquared_coarray(ims:ime,:,jms:jme)
+                ! print *, this_image(), "smooth success"
+            else
+                domain%smooth_nsquared%data_3d(ims:ime,:,jms:jme) = nsquared(:,:,:)
+                call domain%smooth_nsquared%exchange_directional_sync()
+            end if
             call smooth_array(domain%smooth_nsquared%data_3d, winsz, ydim=3)
             nsquared(:,:,:) = domain%smooth_nsquared%data_3d(ims:ime,:,jms:jme)
         endif
 
+        ! sync all
+        ! if (this_image() == num_images()) print*, "A =", domain&
+        !      &%smooth_nsquared_coarray
+        sync all
+        stop "---AFTER NSQUARED---"
         !$omp parallel firstprivate(ims, ime, jms, jme, ims_u, ime_u, jms_v, jme_v, kms, kme, nx,nxu,ny,nyv,nz), &
         !$omp firstprivate(reverse, vsmooth, winsz, using_blocked_flow), default(none), &
         !$omp private(i,j,k,step, uk, vi, east, west, north, south, top, bottom, u1d, v1d), &
@@ -1317,27 +1348,40 @@ contains
             ! endif
         endif
 
+        ! ARTLESS
         ! setup spacial winds smoothing
-        smoothing_large_n = 0
-        ! if (OPTIONS%SMOOTHING > ) then
-        !    smoothing_large_n = 1
+        ! smoothing_large_n = 0
+        ! ! if (OPTIONS%SMOOTHING > ) then
+        ! !    smoothing_large_n = 1
+        ! ! end if
+        ! call co_sum(smoothing_large_n)
+        ! if (smoothing_large_n > 0) then
+        !    ! - [ ] every image needs to know if smoothing_bv_extra = yes or no
+        !    do i = 1, num_images()
+        !       ! - [ ] where to find grid
+        !       call domain%grid%set_grid_dimensions(nx, ny, nz, for_image=i)
+        !       ! - [ ] where to save test_data
+        !       ! test_data(:,i) = [grid%ims, grid%ime, &
+        !       !                   grid%kms, grid%kme, &
+        !       !                   grid%jms, grid%jme]
+        !    end do
+        !    call domain%grid%set_grid_dimensions(nx, ny, nz)
+
+        !    ! broadcast
+        !    if (this_image() == num_images()) then
+        !       ! call gather_array_3d(domain%ARRAY, grids=grids, &
+        !       !      main_image_arg = this_image())
+        !       ! call scatter_array_3d(domain%ARRAY, grids=grids, &
+        !       !      main_image_arg = this_image())
+        !    else
+        !       ! call gather_array_3d(domain%ARRAY)
+        !       ! call scatter_array_3d(domain%ARRAY)
+        !    end if
+
         ! end if
-        call co_sum(smoothing_large_n)
-        if (smoothing_large_n > 0) then
-           ! - [ ] every image needs to know if smoothing_bv_extra = yes or no
-           do i = 1, num_images()
-              ! - [ ] where to find grid
-              call domain%grid%set_grid_dimensions(nx, ny, nz, for_image=i)
-              ! - [ ] where to save test_data
-              ! test_data(:,i) = [grid%ims, grid%ime, &
-              !                   grid%kms, grid%kme, &
-              !                   grid%jms, grid%jme]
-           end do
-           call domain%grid%set_grid_dimensions(nx, ny, nz)
-        end if
 
 
-        stop "SETUP SPACIAL WINDS SMOOTHING"
+        ! stop "SETUP SPACIAL WINDS SMOOTHING"
 
 
         module_initialized = .True.
