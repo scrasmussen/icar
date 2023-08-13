@@ -17,7 +17,7 @@ module co_util
                             bcast_4dr,    bcast_3dr,    bcast_2dr,    bcast_1dr, & ! real arrays
                          co_bcast_i,      bcast_i,   co_bcast_1di,    bcast_1di, & ! int scalars and 1d arrays and co-arrays
                          co_bcast_r,      bcast_r, & ! 1dr is taken care of above with multi-dim reals
-                         co_bcast_c,      bcast_c,   co_bcast_1dc,    bcast_1dc, & ! character scalars and 1d arrays and co-arrays
+                         co_bcast_c,   co_bcast_1dc,    bcast_1dc, & ! character scalars and 1d arrays and co-arrays
                          co_bcast_l,      bcast_l                                  ! logical scalars and co-array (scalars)
     end interface
 
@@ -434,6 +434,9 @@ contains
         character(len=kMAX_STRING_LENGTH), allocatable :: coscalar[:]
 
         allocate(coscalar[*])
+        ! --- OR FOR IFX THIS IS NEEDED ---
+        ! character(len=kMAX_STRING_LENGTH), save :: coscalar[*]
+
         coscalar = scalar
 
         !call co_broadcast(coscalar, source_image)

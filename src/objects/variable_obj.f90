@@ -171,10 +171,10 @@ contains
         call broadcast(this%n_dimensions,  source, first, last, create_co_array=.True.)
         call broadcast(this%three_d,       source, first, last, create_co_array=.True.)
         call broadcast(this%two_d,         source, first, last, create_co_array=.True.)
-        call broadcast(this%forcing_var,   source, first, last, create_co_array=.True.)
+        ! call broadcast(this%forcing_var,   source, first, last, create_co_array=.True.)
 
         ! these attributes are inherited from meta_data parent class and must be broadcast too
-        call broadcast(this%name,          source, first, last, create_co_array=.True.)
+        ! call broadcast(this%name,          source, first, last, create_co_array=.True.)
         call broadcast(this%n_attrs,       source, first, last, create_co_array=.True.)
 
         ! we have to figure out how big the attribute array is as n_attrs is the number stored in it, not the memory allocated for it
@@ -191,8 +191,8 @@ contains
 
         if (.not.allocated(this%attributes)) allocate(this%attributes(attr_array_size))
         do i=1, this%n_attrs
-            call broadcast(this%attributes(i)%name,  source, first, last, create_co_array=.True.)
-            call broadcast(this%attributes(i)%value, source, first, last, create_co_array=.True.)
+            ! call broadcast(this%attributes(i)%name,  source, first, last, create_co_array=.True.)
+            ! call broadcast(this%attributes(i)%value, source, first, last, create_co_array=.True.)
         enddo
 
 

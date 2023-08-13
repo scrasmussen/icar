@@ -203,7 +203,7 @@ endif
 # Various compiling options.  Set the MODE variable with "make MODE=debugslow" etc.
 ifeq ($(MODE), debugslow)
 	ifeq ($(COMPILER), intel)
-		COMP= -debug -debug-parameters all -traceback -ftrapuv -g -fpe0 -c -u -check all -check noarg_temp_created -CB
+		COMP= -debug -O0 -debug-parameters all -traceback -ftrapuv -g -fpe0 -c -u -check all -check noarg_temp_created -CB
 		LINK=
 	endif
 	ifeq ($(COMPILER), gnu)
@@ -311,7 +311,9 @@ ifeq ($(COMPILER), intel)
 	else
 		CAF_FLAG=-coarray=distributed
 		LINKER=mpiifort
+		LINKER=ifx
 	endif
+	CAF_FLAG=-coarray -coarray-num-images=36
 endif
 
 ASSERT=-DUSE_ASSERTIONS=$(USE_ASSERTIONS)
