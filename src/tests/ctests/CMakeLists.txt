@@ -11,9 +11,29 @@ set (NETCDF_F90 "YES")
 find_package (NetCDF REQUIRED)
 find_package (FFTW REQUIRED)
 
+message("CMAKE_Fortran_COMPILER_ID is ${CMAKE_Fortran_COMPILER_ID}")
+message("ctest_fortran_compiler is ${CMAKE_Fortran_COMPILER}")
+# make sure caf is the compiler
+if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  set(Fortran_FLAGS "-fopenmp -lgomp -O2 -mfma -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native -fno-protect-parens")
 
-set(Fortran_FLAGS "-fopenmp -lgomp -O2 -mfma -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native -fno-protect-parens")
-set(CMAKE_Fortran_FLAGS "${Fortran_FLAGS} -DUSE_ASSERTIONS=.false. -cpp -DVERSION=2.1")
+  if (CMAKE_Fortran_COMPILER MATCHES "caf$")
+    message("Success: caf compiler detected")
+  elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    find_library(caf_lib_found
+      NAMES libcaf_mpi.so libcaf_mpi.a
+      PATHS ENV LD_LIBRARY_PATH)
+    message("need libcaf_mpi{.so,.a}: found = ${caf_lib_found}")
+    if (caf_lib_found STREQUAL caf_lib_found-NOTFOUND)
+      message(FATAL_ERROR "Library libcaf_mpi not found, GNU needs it to use OpenCoarrays")
+    endif()
+    set(Fortran_FLAGS "-fcoarray=lib ${Fortran_FLAGS}")
+    add_link_options(${caf_lib_found})
+  endif()
+
+  set(CMAKE_Fortran_FLAGS "${Fortran_FLAGS} -DUSE_ASSERTIONS=.false. -cpp -DVERSION=2.1")
+endif()
+
 
 set(CMAKE_Fortran_MODULE_DIRECTORY "${CMAKE_BINARY_DIR}/../../../build/")
 set(ICAR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../)
@@ -88,7 +108,7 @@ add_test(NAME fortran_ctest_should_not_fail
 add_executable(test_lt_parameters_namelist
   test_lt_parameters_namelist.f90)
 add_test(NAME test_lt_parameters_namelist
-  COMMAND test_lt_parameters_namelist)
+  COMMAND test_lt_parameters_namelist ${CMAKE_CURRENT_SOURCE_DIR}/input/lt_options.nml)
 target_link_libraries(test_lt_parameters_namelist icar_lib)
 
 # target_link_libraries(test_lt_parameters_namelist

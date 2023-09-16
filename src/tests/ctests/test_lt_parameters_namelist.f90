@@ -1,20 +1,23 @@
 program test_lt_parameters_namelist
-  ! use options_implementation !, only : lt_parameters_namelist
-  ! use options_interface, only : options_t, options_implementation   !lt_parameters_namelist, options_t
   use options_interface, only : options_t, call_lt_parameters_namelist
   implicit none
 
-  character(len=:), allocatable :: filename
-  type(options_t) :: options
+  character(len=1024) :: filename
+  type(options_t) :: opt
 
-  filename = "lt_options.nml"
+  call get_command_argument(1, filename)
 
-  print *, "opening ", filename
+  ! call options_interface%options_implementation%lt_parameters_namelist(filename, opt)
+  ! call options_implementation%lt_parameters_namelist(filename, opt)
 
-  ! call options_interface%options_implementation%lt_parameters_namelist(filename, options)
-  ! call options_implementation%lt_parameters_namelist(filename, options)
-  call call_lt_parameters_namelist(filename, options)
+  opt%parameters%use_lt_options = .true.
+  call call_lt_parameters_namelist(filename, opt)
 
+  if (opt%lt_options%read_LUT .neqv. .true.) then
+     error stop "lt_option%read_LUT is false, should be true"
+  end if
 
-  print *, "fin"
+  if (opt%lt_options%write_LUT .neqv. .true.) then
+     error stop "lt_option%write_LUT is false, should be true"
+  end if
 end program test_lt_parameters_namelist
