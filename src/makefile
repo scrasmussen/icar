@@ -331,7 +331,7 @@ FFLAGS=$(COMP) $(PROF) $(CAF_FLAG) $(PREPROC) -DVERSION=\"$(GIT_VERSION)\" $(INC
 # this line is to handle the fact the Cray compiler does optimizations that
 # make setting logical values in derived types unrealiable in options_obs.F90
 ifeq ($(COMPILER), cray)
-	OPTIONS_FLAGS=${FFLAGS} -O0
+	OPTIONS_FLAGS=${FFLAGS} -hipa0
 else
 	OPTIONS_FLAGS=${FFLAGS}
 endif
