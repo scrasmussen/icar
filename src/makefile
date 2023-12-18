@@ -72,6 +72,8 @@ CP=/bin/cp
 # doxygen only required to enable "make doc"
 DOXYGEN=doxygen
 
+
+
 ifndef FC
 	FC=gfortran
 endif
@@ -193,7 +195,7 @@ endif
 
 # Cray fortran
 ifeq ($(COMPILER), cray)
-	COMP= -h omp vector2 -O2 -c -eI -hfp0
+	COMP= -h omp vector2 -O2 -c -eI
 	LINK= -fopenmp
 	PREPROC= -eT
 	MODOUTPUT= -J $(BUILD) -em
@@ -331,7 +333,11 @@ FFLAGS=$(COMP) $(PROF) $(CAF_FLAG) $(PREPROC) -DVERSION=\"$(GIT_VERSION)\" $(INC
 # this line is to handle the fact the Cray compiler does optimizations that
 # make setting logical values in derived types unrealiable in options_obs.F90
 ifeq ($(COMPILER), cray)
-	OPTIONS_FLAGS=${FFLAGS} -hipa0
+	ifeq ($(BUG), 1)
+		OPTIONS_FLAGS=${FFLAGS}
+	else
+		OPTIONS_FLAGS=${FFLAGS} -hipa0
+	endif
 else
 	OPTIONS_FLAGS=${FFLAGS}
 endif
@@ -460,10 +466,13 @@ TEST_EXECUTABLES= 	fftshift_test			\
 #	User facing rules
 ###################################################################
 
-icar:${OBJS} $(BUILD)driver.o
-	${LINKER} $^ -o icar ${LFLAGS}
+icar: rm_options ${OBJS} $(BUILD)driver.o
+	${LINKER} ${OBJS} $(BUILD)driver.o -o icar ${LFLAGS}
 
 all:icar test
+
+rm_options:
+	rm -f $(BUILD)options_obj.o
 
 install:icar
 	mkdir -p ${INSTALLDIR}

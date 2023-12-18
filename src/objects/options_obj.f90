@@ -1927,6 +1927,10 @@ contains
 
         ! copy the data back into the global options data structure
         options%rad_options = rad_options
+        print*, "use_simple_sw, options%rad_options%use_simple_sw, rad_options%use_simple_sw"
+        print*, use_simple_sw, options%rad_options%use_simple_sw, rad_options%use_simple_sw
+
+        stop "DEBUGGING"
     end subroutine rad_parameters_namelist
 
 
