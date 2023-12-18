@@ -1,7 +1,7 @@
 # Reproduce Cray Derived Type Bug
 
 ## Bug Description
-The setting of the logical value at this location is occuring incorrectly.
+The setting of the logical value at [this location](https://github.com/scrasmussen/icar/blob/535e7643bef602bdb1da23445f878430b7c32c94/src/objects/options_obj.f90#L1929-L1931) is occuring incorrectly.
 
 ## Build
 ### Load environment
@@ -28,7 +28,7 @@ $ make
 
 The last two lines of the output will either be:
 
-* Broken 
+* Broken
 ```
  T,  2*F
  STOP DEBUGGING
@@ -39,4 +39,3 @@ The last two lines of the output will either be:
  3*T
  STOP DEBUGGING
 ```
-
