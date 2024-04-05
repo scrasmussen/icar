@@ -59,13 +59,17 @@ module output_interface
       ! name of the dimensions in the file
       character(len=kMAX_DIM_LENGTH) :: dimensions(kMAX_DIMENSIONS)
       character(len=kMAX_NAME_LENGTH) :: time_units
+      ! global attribute restarted_from
+      ! values: 2000-01-01_00:00:00 or None
+      character(len=20) :: restarted_from
 
   contains
 
       procedure, public  :: add_to_output
       procedure, public  :: add_variables
-      procedure, public  :: set_domain
       procedure, public  :: save_file
+      procedure, public  :: set_domain
+      procedure, public  :: set_restart_attribute
 
       procedure, private :: init
       procedure, private :: increase_var_capacity
@@ -99,6 +103,16 @@ module output_interface
           implicit none
           class(output_t),  intent(inout)  :: this
           type(domain_t),   intent(in)     :: domain
+      end subroutine
+
+      !>----------------------------------------------------------
+      !! Set the restart attribute to be used when writing global
+      !! attributes
+      !!----------------------------------------------------------
+      module subroutine set_restart_attribute(this, restart_time)
+          implicit none
+          class(output_t),  intent(inout)  :: this
+          character(len=25), intent(in) :: restart_time
       end subroutine
 
       !>----------------------------------------------------------

@@ -19,6 +19,17 @@ contains
 
     end subroutine
 
+    module subroutine set_restart_attribute(this, restart_time)
+        class(output_t),  intent(inout)  :: this
+        character(len=25), intent(in) :: restart_time
+
+        if (index(restart_time, "0-00-00_00-00-00") /= 0) then
+           this%restarted_from = "Not Restarted"
+        else
+           this%restarted_from = restart_time
+        end if
+    end subroutine set_restart_attribute
+
 
     module subroutine add_to_output(this, variable)
         class(output_t),   intent(inout) :: this
@@ -324,6 +335,8 @@ contains
         endif
 
         call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "image", this_image()))
+        call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "restarted_from", &
+             this%restarted_from))
 
     end subroutine add_global_attributes
 
