@@ -268,6 +268,7 @@ def continuous(file_search):
         first_files = glob.glob(file_search.format(ens="000001"))
         first_files.sort()
 
+        aggregate_prep()
         # skip the last file in the list as ICAR might still be running
         for f in first_files[:-1]:
             agg_file(f, verbose=False)
