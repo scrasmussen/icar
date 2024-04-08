@@ -9,6 +9,9 @@ cp:
 run: cp
 	./icar icar_options.nml
 
+post:
+	../helpers/aggregate_parallel_files.py
+
 clean:
 	rm -f forcing.nc init.nc icar_options.nml *~
 cleanall: clean
