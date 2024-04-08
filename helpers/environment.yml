@@ -1,0 +1,10 @@
+name: icarenv
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.8
+  - matrix-nio
+  - netCDF4
+  - numpy
+  - pandas
+  - xarray
