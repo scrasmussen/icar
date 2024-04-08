@@ -72,11 +72,9 @@ contains
         ! define variables or find variable IDs (and dimensions)
         call setup_variables(this, time)
 
-        if (this%creating) then
-            ! add global attributes such as the image number, domain dimension, creation time
-            call add_global_attributes(this)
+        ! add global attributes such as the image number, domain dimension, creation time
+        call add_global_attributes(this)
 
-        endif
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(this%ncfile_id), "end define mode" )
 
@@ -308,8 +306,13 @@ contains
         character(len=64)       :: err
         integer                 :: ncid
 
-        ncid = this%ncfile_id
+        ! if not creating the file, only update restarted_from attribute
+        if (this%creating .eqv. .false.) then
+            call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "restarted_from", this%restarted_from))
+            return
+        end if
 
+        ncid = this%ncfile_id
         err="Creating global attributes"
         call check( nf90_put_att(ncid,NF90_GLOBAL,"Conventions","CF-1.6"), trim(err))
         call check( nf90_put_att(ncid,NF90_GLOBAL,"title","Intermediate Complexity Atmospheric Research (ICAR) model output"), trim(err))
@@ -335,8 +338,7 @@ contains
         endif
 
         call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "image", this_image()))
-        call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "restarted_from", &
-             this%restarted_from))
+        call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "restarted_from", this%restarted_from))
 
     end subroutine add_global_attributes
 
