@@ -11,6 +11,8 @@ import sys
 
 pool = None
 
+no_restarted_from_s = 'No restarted_from Attribute'
+
 # This should be an input, this is the search string that is assumed to match
 # the output files to be aggregated.
 prefix = 'icar_out_'
@@ -193,13 +195,16 @@ def get_restart_from_date(file_date):
         file_date (str): The date used to construct the filename.
 
     Returns:
-        str or None: The value of the 'restarted_from' attribute if the run was restarted, otherwise None.
+        str: The date from the 'restarted_from' attribute if the run was restarted, otherwise
+             'No restarted_from Attribute' or 'Not Restarted'
     '''
     out_filename = prefix + '000001_' + file_date + '.nc'
     ds = xr.open_dataset(out_filename)
-    restarted_from = ds.attrs['restarted_from']
-    if restarted_from == 'Not Restarted':
-        return None
+    try:
+        restarted_from = ds.attrs['restarted_from']
+    except:
+        restarted_from = no_restarted_from_s
+
     return restarted_from
 
 
@@ -227,8 +232,11 @@ def aggregate_prep():
     agg_files.sort()
 
     # if output files not from a restarted run, remove all existing aggregated files
-    if not restarted_from:
+    if restarted_from == 'Not Restarted':
         print("Outputted files not from restart run, removing all aggregated files")
+        remove_from_file = agg_files[0]
+    elif restarted_from == no_restarted_from_s:
+        print("Output files do not have 'restarted_from' attribute, removing all aggregated files")
         remove_from_file = agg_files[0]
     else:
         # delete every aggregated file from restarted_from date on
