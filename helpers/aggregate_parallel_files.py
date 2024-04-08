@@ -13,7 +13,8 @@ pool = None
 
 # This should be an input, this is the search string that is assumed to match
 # the output files to be aggregated.
-file_search = "icar_out_{ens}_*"
+prefix = 'icar_out_'
+file_search = prefix+'{ens}_*'
 
 
 def load_file(file_name):
@@ -159,6 +160,90 @@ def agg_file(first_file, verbose=True):
     print(outputfile)
     data_set.to_netcdf(outputfile)
 
+def find_aggregate_from_date():
+    '''
+    Finds the date of the last aggregated file based on a specific prefix and date format.
+
+    Returns:
+        str or False: The date of the last aggregated file if found, otherwise False.
+    '''
+    first_files = glob.glob(file_search.format(ens="000001"))
+    if not first_files:
+        print("Exiting: no output files found with prefix", prefix)
+        sys.exit()
+    first_files.sort()
+
+    # following 2000-01-01_00-00-00 format
+    find_s = prefix + '[0-9][0-9][0-9][0-9]-[0-2][0-9]-[0-3][0-9]_[0-9][0-9]-[0-9][0-9]-[0-9][0-9].nc'
+    first_agg_files = glob.glob(find_s)
+    # if there are no aggregated files
+    if not first_agg_files:
+        return False #first_files[0]
+
+    last_agg_file = first_agg_files[-1]
+    last_agg_file_date = last_agg_file.replace(prefix, '').replace('.nc','')
+    return last_agg_file_date
+
+
+def get_restart_from_date(file_date):
+    '''
+    Gets the value of the attribute 'restarted_from' from an output file based on a given date.
+
+    Args:
+        file_date (str): The date used to construct the filename.
+
+    Returns:
+        str or None: The value of the 'restarted_from' attribute if the run was restarted, otherwise None.
+    '''
+    out_filename = prefix + '000001_' + file_date + '.nc'
+    ds = xr.open_dataset(out_filename)
+    restarted_from = ds.attrs['restarted_from']
+    if restarted_from == 'Not Restarted':
+        return None
+    return restarted_from
+
+
+def aggregate_prep():
+    '''
+    Prepares aggregated files based on the current state of the output.
+
+    This function determines the latest aggregated file, checks if the current
+    output is from a restarted run, and adjusts the aggregated files accordingly.
+
+    Returns:
+        None
+    '''
+    find_agg_s = prefix + '[0-9][0-9][0-9][0-9]-[0-2][0-9]-[0-3][0-9]_[0-9][0-9]-[0-9][0-9]-[0-9][0-9].nc'
+
+    # find the last aggregated file, if no aggregated files, no prep needed
+    agg_from_date = find_aggregate_from_date()
+    if agg_from_date == False:
+        print("No aggregated files")
+        return
+
+    # check the current output's restarted-from date and get list of aggregated files
+    restarted_from = get_restart_from_date(agg_from_date)
+    agg_files = glob.glob(find_agg_s)
+    agg_files.sort()
+
+    # if output files not from a restarted run, remove all existing aggregated files
+    if not restarted_from:
+        print("Outputted files not from restart run, removing all aggregated files")
+        remove_from_file = agg_files[0]
+    else:
+        # delete every aggregated file from restarted_from date on
+        print("Recreating aggregated files from", restarted_from, "onward")
+        remove_from_file = prefix + restarted_from + '.nc'
+
+    # remove files
+    start_deleting = False
+    for f in agg_files:
+        if f == remove_from_file:
+            start_deleting = True
+        if start_deleting:
+            os.remove(f)
+
+
 def main(file_search = "icar_out_{ens}_*"):
     first_files = glob.glob(file_search.format(ens="000001"))
     first_files.sort()
@@ -166,6 +251,8 @@ def main(file_search = "icar_out_{ens}_*"):
     # For some reason running the parallelization this far out seems to have far worse performance...
     #  would map_async be faster for some reason?  I assume map is still parallel.
     # pool.map(agg_file, first_files)
+
+    aggregate_prep()
 
     for f in first_files:
         agg_file(f)
