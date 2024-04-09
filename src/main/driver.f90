@@ -3,7 +3,7 @@
 !!
 !! Initialize options and memory in init_model
 !! Read initial conditions in bc_init (from a restart file if requested)
-!! initialize physics packages in init_physics (e.g. tiedke and thompson if used)
+!! initialize physics packages in init_physics (e.g. tiedtke and thompson if used)
 !! If this run is a restart run, then set start to the restart timestep
 !!      in otherwords, ntimesteps is the number of BC updates from the beginning of the entire model
 !!      run, not just from the begining of this restart run
