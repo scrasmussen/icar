@@ -6,12 +6,23 @@ submodule(output_interface) output_implementation
 
 contains
 
+    module subroutine init(this, domain, options, file_date_format)
+        implicit none
+        class(output_t),   intent(inout)  :: this
+        type(domain_t),    intent(in)     :: domain
+        type(options_t),   intent(in)     :: options
+        character(len=49), intent(in)     :: file_date_format
+        call this%set_domain(domain)
+        call this%add_variables(options%vars_for_restart, domain)
+        call this%set_restart_variable(options%parameters%restart_time%as_string(file_date_format))
+    end subroutine init
+
     module subroutine set_domain(this, domain)
         class(output_t),  intent(inout)  :: this
         type(domain_t),   intent(in)     :: domain
         integer :: i
 
-        if (.not.this%is_initialized) call this%init()
+        if (.not.this%is_initialized) call this%init_variables()
 
         do i=1,domain%info%n_attrs
             call this%add_attribute(domain%info%attributes(i)%name, domain%info%attributes(i)%value)
@@ -19,7 +30,7 @@ contains
 
     end subroutine
 
-    module subroutine set_restart_attribute(this, restart_time)
+    module subroutine set_restart_variable(this, restart_time)
         class(output_t),  intent(inout)  :: this
         character(len=25), intent(in) :: restart_time
 
@@ -28,14 +39,14 @@ contains
         else
            this%restarted_from = restart_time
         end if
-    end subroutine set_restart_attribute
+    end subroutine set_restart_variable
 
 
     module subroutine add_to_output(this, variable)
         class(output_t),   intent(inout) :: this
         type(variable_t),  intent(in)     :: variable
 
-        if (.not.this%is_initialized) call this%init()
+        if (.not.this%is_initialized) call this%init_variables()
 
         if (associated(variable%data_2d).or.associated(variable%data_2dd).or.associated(variable%data_3d)) then
 
@@ -56,7 +67,7 @@ contains
         type(Time_type),  intent(in)    :: time
         integer :: err
 
-        if (.not.this%is_initialized) call this%init()
+        if (.not.this%is_initialized) call this%init_variables()
 
         ! open file
         this%filename = filename
@@ -306,7 +317,8 @@ contains
         character(len=64)       :: err
         integer                 :: ncid
 
-        ! if not creating the file, only update restarted_from attribute
+        ! if not creating the file, only update restarted_from attribute. It
+        ! could be opening a previous file whose restart needs to updated
         if (this%creating .eqv. .false.) then
             call check(nf90_put_att(this%ncfile_id, NF90_GLOBAL, "restarted_from", this%restarted_from))
             return
@@ -533,7 +545,7 @@ contains
 
     end subroutine setup_variable
 
-    module subroutine init(this)
+    module subroutine init_variables(this)
         implicit none
         class(output_t),   intent(inout)  :: this
 

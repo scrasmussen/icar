@@ -72,13 +72,8 @@ program icar
         if (this_image()==1) print*,"  frames per output file= ", options%parameters%frames_per_outfile
     end if
 
-    call restart_dataset%set_domain(domain)
-    call restart_dataset%add_variables(options%vars_for_restart, domain)
-    call restart_dataset%set_restart_attribute(options%parameters%restart_time%as_string(file_date_format))
-
-    call output_dataset%set_domain(domain)
-    call output_dataset%add_variables(options%output_options%vars_for_output, domain)
-    call output_dataset%set_restart_attribute(options%parameters%restart_time%as_string(file_date_format))
+    call restart_dataset%init(domain, options, file_date_format)
+    call output_dataset%init(domain, options, file_date_format)
 
     if (options%parameters%restart) then
         if (this_image()==1) write(*,*) "Reading restart data"
