@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.8
-  - matrix-nio
+  - matplotlib
   - netCDF4
   - numpy
   - pandas
