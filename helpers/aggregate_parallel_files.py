@@ -231,13 +231,16 @@ def aggregate_prep():
     agg_files = glob.glob(find_agg_s)
     agg_files.sort()
 
+    remove_from_file = None
     # if output files not from a restarted run, remove all existing aggregated files
     if restarted_from == 'Not Restarted':
-        print("Outputted files not from restart run, removing all aggregated files")
-        remove_from_file = agg_files[0]
+        print("Note: output files not from a restart run")
+        # print("Outputted files not from restart run, removing all aggregated files")
+        # remove_from_file = agg_files[0]
     elif restarted_from == no_restarted_from_s:
-        print("Output files do not have 'restarted_from' attribute, removing all aggregated files")
-        remove_from_file = agg_files[0]
+        print("Note: output files do not have 'restarted_from' attribute")
+        # print("Output files do not have 'restarted_from' attribute, removing all aggregated files")
+        # remove_from_file = agg_files[0]
     else:
         # delete every aggregated file from restarted_from date on
         print("Recreating aggregated files from", restarted_from, "onward")
@@ -271,12 +274,19 @@ def main(file_search = "icar_out_{ens}_*"):
 
 
 def continuous(file_search):
+    '''
+    Runs continuous aggregation of output files
+
+    Returns:
+        None
+    '''
     print("Running continuous aggregation, Ctrl-C to stop")
+    aggregate_prep()
+
     while True:
         first_files = glob.glob(file_search.format(ens="000001"))
         first_files.sort()
 
-        aggregate_prep()
         # skip the last file in the list as ICAR might still be running
         for f in first_files[:-1]:
             agg_file(f, verbose=False)
