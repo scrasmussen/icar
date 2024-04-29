@@ -213,7 +213,10 @@ def aggregate_prep():
     Prepares aggregated files based on the current state of the output.
 
     This function determines the latest aggregated file, checks if the current
-    output is from a restarted run, and adjusts the aggregated files accordingly.
+    netcdff output is from a restarted run. If from restarted run will remove
+    aggregated files from that restarted_from data onward, otherwise let the
+    user know if files are not from a restarted run or if they do not have the
+    restarted_from attribute.
 
     Returns:
         None
@@ -232,7 +235,8 @@ def aggregate_prep():
     agg_files.sort()
 
     remove_from_file = None
-    # if output files not from a restarted run, remove all existing aggregated files
+    # only remove aggregate files from "restarted_from" date onward, otherwise
+    # print warnings
     if restarted_from == 'Not Restarted':
         print("Note: output files not from a restart run")
         # print("Outputted files not from restart run, removing all aggregated files")
