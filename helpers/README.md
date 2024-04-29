@@ -27,5 +27,4 @@ $ export PYTHONPATH=$(pwd)/lib:$PYTHONPATH
 
 
 ## Deprecated Scripts
-The units package used in the `cmip/convert.py, cesm/bias_correct.py` and `gen_sounding.py` scripts has been deprecated.
 The [Nio package](https://www.pyngl.ucar.edu/Nio.shtml) used in `create_geo_testfiles.py` is not installed as a dependency.
