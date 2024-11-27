@@ -1016,7 +1016,7 @@ contains
             ! ( Although an argument could be made to calculate this on the offset (u/v) grid b/c that is most
             !   relevant for advection? In reality this is probably a sufficient approximation, as long as we
             !   aren't pushing the gamma factor too close to zero )
-            allocate(gamma_n(this%kms : max_level))  
+            allocate(gamma_n(this%kms : max_level))
 
 
             i=kms
@@ -1027,7 +1027,7 @@ contains
                 * COSH((smooth_height/s2)**n) / SINH((smooth_height/s2)**n)
             if (options%parameters%debug .and. this_image()==1) write(*,*) " k, gamma: ", i, gamma_n(i)
 
-            ! do i = this%grid%kds, this%grid%kde 
+            ! do i = this%grid%kds, this%grid%kde
             do i = this%grid%kms, max_level-1 ! account for flat z < 0, otherwise gamma can blow up if flat z < 0.
                 gamma_n(i+1)  =  1                                    &    ! # for i != kds !!
                 - MAXVAL(h1) * n/(s1**n) * sum(dz_scl(1:i))**(n-1)                                             &
@@ -1530,7 +1530,7 @@ contains
 
 
         ! create a separate variable that will be smoothed later on:
-        h1 =  global_terrain(this%grid2d%ids:this%grid2d%ide, this%grid2d%jds:this%grid2d%jde)
+        h1 =  this%global_terrain(this%grid2d%ids:this%grid2d%ide, this%grid2d%jds:this%grid2d%jde)
 
         ! offset the global terrain for the h_(u/v) calculations:
         call array_offset_x(global_terrain, temp_offset)

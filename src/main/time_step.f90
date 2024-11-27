@@ -98,8 +98,8 @@ contains
         temperature_i(:, kms, :) = temperature(:, kms, :) + (temperature(:, kms, :) - temperature(:, kms+1, :)) / 2
 
         if (associated(domain%density%data_3d)) then
-            density =  pressure / &
-                        (Rd * temperature) ! kg/m^3
+            domain%density%data_3d =  domain%pressure%data_3d / &
+                        (Rd * domain%temperature%data_3d) ! kg/m^3
         endif
         if (associated(domain%u_mass%data_3d)) then
             u_mass = (u(ims+1:ime+1,:,:) + u(ims:ime,:,:)) / 2

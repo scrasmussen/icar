@@ -358,7 +358,7 @@ contains
         !$omp end parallel
     end subroutine surface_diagnostics
 
-        subroutine apply_fluxes(domain,dt)
+    subroutine apply_fluxes(domain,dt)
         ! add sensible and latent heat fluxes to the first atm level
         implicit none
         type(domain_t), intent(inout) :: domain
@@ -407,7 +407,7 @@ contains
             lhdQV(i,j) = (lh_feedback_fraction * latent_heat(i,j) / LH_vaporization * dt) &
                     / (density(i,k,j) * sfc_layer_thickness)
             ! add water vapor in kg/kg
-            qv(i,k,j) = qv(i,k,j) + lhdQV(i,j) * layer_fraction
+            domain%water_vapor%data_3d(i,k,j) = domain%water_vapor%data_3d(i,k,j) + lhdQV(i,j) * layer_fraction
 
         end do ! i
         end do ! k
