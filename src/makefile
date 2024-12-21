@@ -136,6 +136,9 @@ ifndef COMPILER
 	ifeq ($(F90),ifort)
 		COMPILER=intel
 	endif
+	ifeq ($(F90),ifx)
+		COMPILER=intel
+	endif
 	ifeq ($(F90),ftn)
 		COMPILER=cray
 	endif
@@ -311,6 +314,9 @@ ifeq ($(COMPILER), intel)
 	else
 		CAF_FLAG=-coarray=distributed
 		LINKER=mpiifort
+		ifeq ($(F90), ifx)
+			LINKER=mpif90
+		endif
 	endif
 endif
 
