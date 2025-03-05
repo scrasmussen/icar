@@ -79,9 +79,16 @@ ifndef F90
 	F90=${FC}
 endif
 
+# check PE_ENV variable definition for Cray systems
 ifeq ($(PE_ENV),CRAY)
 	FC=ftn
 	F90=ftn
+	ECHO_MOVE=/bin/mv
+endif
+ifeq ($(PE_ENV),GNU)
+	FC=ftn
+	F90=ftn
+	COMPILER=gnu
 	ECHO_MOVE=/bin/mv
 endif
 
