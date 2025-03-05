@@ -107,7 +107,7 @@ contains
 
         implicit none
         real, dimension(ims:ime,  kms:kme,jms:jme),  intent(inout)   :: q
-        real, dimension(ims:ime,  kms:kme,jms:jme),  intent(in)      :: rho_in
+        real, dimension(:, :, :), pointer,           intent(in)      :: rho_in
         real, dimension(ims:ime,  kms:kme,jms:jme),  intent(in)      :: dz
         integer,                            intent(in)      :: ims, ime, kms, kme, jms, jme
         real, dimension(ims:ime,  kms:kme,jms:jme),  intent(in)      :: jaco
@@ -119,16 +119,16 @@ contains
         real, dimension(ims:ime-2,kms:kme)    :: f3,f4
         real, dimension(ims:ime-2,kms:kme-1)  :: f5
         real, dimension(ims:ime,kms:kme,jms:jme) :: qin, rho
-        
+
         rho = 1
-        
+
         do i=jms,jme
             qin(:,:,i)=q(:,:,i)
         enddo
-        
+
         if (options%parameters%advect_density) rho = rho_in
-        
-        
+
+
         ! !$omp parallel shared(qin,q,u,v,w,rho,dz,jaco) firstprivate(ims,ime,kms,kme,jms,jme) private(i,f1,f3,f4,f5)
         ! !$omp do schedule(static)
 
@@ -156,10 +156,10 @@ contains
             f5= ((W_m(ims+1:ime-1,kms:kme-1,i) + ABS(W_m(ims+1:ime-1,kms:kme-1,i))) * qin(ims+1:ime-1,kms:kme-1,i) + &
                  (W_m(ims+1:ime-1,kms:kme-1,i) - ABS(W_m(ims+1:ime-1,kms:kme-1,i))) * qin(ims+1:ime-1,kms+1:kme,i))  / 2
 
-                
+
                ! perform horizontal advection, from difference terms
                q(ims+1:ime-1,:,i)      = q(ims+1:ime-1,:,i)       - ((f1(ims+1:ime-1,:) - f1(ims:ime-2,:)) + (f3 - f4)) &
-                                   / (jaco(ims+1:ime-1,:,i)*rho(ims+1:ime-1,:,i))                      
+                                   / (jaco(ims+1:ime-1,:,i)*rho(ims+1:ime-1,:,i))
                ! then vertical (order doesn't matter because fluxes f1-6 are calculated before applying them)
                ! add fluxes to middle layers
                q(ims+1:ime-1,kms+1:kme-1,i) = q(ims+1:ime-1,kms+1:kme-1,i)  - (f5(:,kms+1:kme-1) - f5(:,kms:kme-2)) &
@@ -312,12 +312,12 @@ contains
         real,               intent(in)  :: dt
         real,               intent(in)  :: jaco_u(ims:ime+1,kms:kme,jms:jme)
         real,               intent(in)  :: jaco_v(ims:ime,kms:kme,jms:jme+1), jaco_w(ims:ime,kms:kme,jms:jme)
-        real,               intent(in)  :: rho_in(ims:ime,kms:kme,jms:jme)
+        real, pointer,      intent(in)  :: rho_in(:,:,:)
         integer, intent(in) :: ims, ime, jms, jme, kms, kme
 
         real, dimension(ims:ime,kms:kme,jms:jme) :: rho
         integer :: i
-        
+
 
         ! if this if the first time we are called, we need to allocate the module level arrays
         ! Could/should be put in an init procedure
@@ -327,7 +327,7 @@ contains
             allocate(W_m     (ims:ime,  kms:kme,jms:jme  ))
             allocate(lastqv_m(ims:ime,  kms:kme,jms:jme  ))
         endif
-        
+
         rho = 1
         if (options%parameters%advect_density) rho = rho_in
 
